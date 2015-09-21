@@ -1097,7 +1097,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         {
             t_pullgrp *pgrp;
             real pull_force;
-            int zeroth_atom;
+            int atom_counter;
             if (pull->ngrp == 1)
             {
                 printf("Ahh yes, one pull group, as expected.\n");
@@ -1107,9 +1107,13 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             dVdl = 0.0;
             pgrp = &pull->grp[1];
             pull_force = pgrp->k;
-            zeroth_atom = pgrp->ind[1];
-            printf("CHECKING FIRST ATOM OF PULL GROUP: %f \n", 
-                    md->chargeA[zeroth_atom]);
+            for (atom_counter = 0 ; atom_counter < pgrp->nat ; atom_counter++){
+                int atom_ind = pgrp->ind[atom_counter];
+                printf("IND OF ATOM %d: %d \t %f \n", 
+                    atom_counter+1, atom_ind,
+                    md->chargeA[atom_ind]);
+            }
+            printf("Number of atoms total: %d\n", md->nr);
         }
         *dvdlambda += dVdl;
     }

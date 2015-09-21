@@ -21,4 +21,4 @@ cd $SRCDIR
 $GROMPP -c FMO_conf/em/em.gro -n FMO_conf/index.ndx -p FMO_conf/4BCL.top \
         -f mdp/test.mdp -o testdir/testdir -po testdir/testdir -maxwarn 1
 
-$MDRUN -v -deffnm testdir/testdir
+$MDRUN -nt 1 -v -deffnm testdir/testdir
