@@ -11,10 +11,12 @@ if [ ! -e testdir ]; then
     mkdir testdir
 fi
 
-GROMPP=mod-gromacs-4.6.7/build/src/kernel/grompp
-MDRUN=mod-gromacs-4.6.7/build/src/kernel/mdrun
+GROMPP=$SRCDIR/mod-gromacs-4.6.7/build/src/kernel/grompp
+MDRUN=$SRCDIR/mod-gromacs-4.6.7/build/src/kernel/mdrun
 
-cd mod-gromacs-4.6.7/build
+cd $SRCDIR/mod-gromacs-4.6.7/build/
+make -j 16
+cd $SRCDIR
 
 $GROMPP -c FMO_conf/em/em.gro -n FMO_conf/index.ndx -p FMO_conf/4BCL.top \
         -f mdp/test.mdp -o testdir/testdir -po testdir/testdir -maxwarn 1

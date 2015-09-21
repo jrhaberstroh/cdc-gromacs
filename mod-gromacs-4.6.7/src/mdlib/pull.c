@@ -1107,7 +1107,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             dVdl = 0.0;
             pgrp = &pull->grp[1];
             pull_force = pgrp->k;
-            zeroth_atom = pgrp->ind[0];
+            zeroth_atom = pgrp->ind[1];
             printf("CHECKING FIRST ATOM OF PULL GROUP: %f \n", 
                     md->chargeA[zeroth_atom]);
         }
