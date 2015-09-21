@@ -63,6 +63,10 @@
 #include "gmx_ga2la.h"
 #include "copyrite.h"
 
+#define BCL_N_ATOMS 140
+
+static double bcl_cdc_charges[BCL_N_ATOMS] = {0.017,0.027,0.021,0.000,0.053,0.000,0.030,0.000,0.028,-0.020,-0.031,-0.009,0.000,-0.003,0.000,-0.004,0.000,0.000,0.000,-0.004,0.000,0.000,0.001,0.000,0.000,-0.003,0.001,0.001,0.014,-0.023,-0.070,0.027,0.027,0.001,0.000,0.000,0.000,0.023,0.013,0.000,0.000,0.000,0.000,0.039,-0.041,-0.060,-0.005,0.000,-0.003,0.000,-0.003,0.000,0.000,0.000,-0.004,0.000,0.000,-0.001,0.000,0.000,0.000,0.012,-0.053,-0.047,0.018,-0.004,-0.002,0.000,0.000,0.000,0.027,0.009,-0.002,0.000,-0.002,0.002,0.003,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000};
+
 static void pull_print_x_grp(FILE *out, gmx_bool bRef, ivec dim, t_pullgrp *pgrp)
 {
     int m;
@@ -1071,13 +1075,15 @@ static void do_pull_pot(int ePull,
 //     dvec        f;          /* force due to the pulling/constraining */
 // } t_pullgrp;
 
+// static float bcl_cdc_charges[140] = {0.017,0.027,0.021,0.000,0.053,0.000,0.030,0.000,0.028,-0.020,-0.031,-0.009,0.000,-0.003,0.000,-0.004,0.000,0.000,0.000,-0.004,0.000,0.000,0.001,0.000,0.000,-0.003,0.001,0.001,0.014,-0.023,-0.070,0.027,0.027,0.001,0.000,0.000,0.000,0.023,0.013,0.000,0.000,0.000,0.000,0.039,-0.041,-0.060,-0.005,0.000,-0.003,0.000,-0.003,0.000,0.000,0.000,-0.004,0.000,0.000,-0.001,0.000,0.000,0.000,0.012,-0.053,-0.047,0.018,-0.004,-0.002,0.000,0.000,0.000,0.027,0.009,-0.002,0.000,-0.002,0.002,0.003,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000};
+
 real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     t_commrec *cr, double t, real lambda,
                     rvec *x, rvec *f, tensor vir, real *dvdlambda)
 {
 
 
-    real V, dVdl;
+    real V_cdc, dVdl;
 
     // pull_calc_coms(cr, pull, md, pbc, t, x, NULL);
 
@@ -1088,8 +1094,8 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     // apply_forces(pull, md, DOMAINDECOMP(cr) ? cr->dd->ga2la : NULL, f);
 
 
-    V = 0.0;
     dVdl = 0.0;
+    V_cdc = 0.0;
 
     if (MASTER(cr))
     {
@@ -1097,28 +1103,56 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         {
             t_pullgrp *pgrp;
             real pull_force;
-            int atom_counter;
-            if (pull->ngrp == 1)
-            {
-                printf("Ahh yes, one pull group, as expected.\n");
-            }
+            int bcl_count, env_ind;
+            real es_const = 138.935485;
+            rvec xrefr = {0, 0, 0};
 
-            V = 1000.0;
-            dVdl = 0.0;
             pgrp = &pull->grp[1];
             pull_force = pgrp->k;
-            for (atom_counter = 0 ; atom_counter < pgrp->nat ; atom_counter++){
-                int atom_ind = pgrp->ind[atom_counter];
-                printf("IND OF ATOM %d: %d \t %f \n", 
-                    atom_counter+1, atom_ind,
-                    md->chargeA[atom_ind]);
+            int bcl_ind_min = pgrp->ind[0];
+
+            for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
+            {
+                int bcl_ind = pgrp->ind[bcl_count];
+                for (env_ind = 0 ; env_ind < md->nr ; env_ind++)
+                {
+                    if (env_ind == bcl_ind_min)
+                    {
+                        env_ind += BCL_N_ATOMS;
+                    }
+                    rvec bi;
+                    rvec ej;
+                    rvec bi_ej_force;
+                    rvec bi_ej_dx;
+
+                    copy_rvec(x[bcl_ind], bi);
+                    copy_rvec(x[env_ind], ej);
+                    pbc_dx(pbc, bi, ej, bi_ej_dx);
+                    real bi_ej_dist = norm(bi_ej_dx);
+                    real bi_ej_couple   = md->chargeA[env_ind] 
+                                          * bcl_cdc_charges[bcl_count]
+                                          * pgrp->k    // linear bias
+                                          * es_const   // electrostatics
+                                          * .8         // screening
+                    ;
+                    real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
+                    real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
+                                                       / bi_ej_dist
+                                                       / bi_ej_dist;
+                    svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
+                    // printf("Force: %f\n", norm(bi_ej_force));
+                    // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,
+                    //         bi_ej_dist);
+                    rvec_inc(f[bcl_ind], bi_ej_force);
+                    rvec_dec(f[env_ind], bi_ej_force);
+                    V_cdc += bi_ej_pot;
+                }
             }
-            printf("Number of atoms total: %d\n", md->nr);
         }
         *dvdlambda += dVdl;
     }
-
-    return (MASTER(cr) ? V : 0.0);
+    // printf("CDC value: %f kCal/mol\n", V_cdc * 349.757);
+    return (MASTER(cr) ? V_cdc : 0.0);
 }
 
 void pull_constraint(t_pull *pull, t_mdatoms *md, t_pbc *pbc,

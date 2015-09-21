@@ -2,7 +2,7 @@ title		= Generic NVT equilibration
 define		=          	; position restrain the protein
 ; Run parameters
 integrator	= md		; leap-frog integrator
-nsteps		= 10    	; 1 ns
+nsteps		= 1000    	; 1 ns
 dt		= 0.001		; 2 fs
 ; Output control
 nstxout		= 5       	; save coordinates every 0.2 ps
@@ -41,6 +41,7 @@ pcoupl		= no 		; no pressure coupling in NVT
 
 ; Pulling for CDC
 pull                    = constant-force
+pull-nstfout            = 1
 pull-geometry           = distance
 pull-dim                = Y Y Y
 pull-ngroups            = 1
