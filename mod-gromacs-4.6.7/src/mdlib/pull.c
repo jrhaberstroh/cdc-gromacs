@@ -1131,14 +1131,14 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     real bi_ej_dist = norm(bi_ej_dx);
                     real bi_ej_couple   = md->chargeA[env_ind] 
                                           * bcl_cdc_charges[bcl_count]
-                                          * pgrp->k    // linear bias
                                           * es_const   // electrostatics
                                           * .8         // screening
                     ;
                     real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
                     real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
                                                        / bi_ej_dist
-                                                       / bi_ej_dist;
+                                                       / bi_ej_dist
+                                                       * pgrp->k; //bias scale
                     svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
                     // printf("Force: %f\n", norm(bi_ej_force));
                     // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,

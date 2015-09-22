@@ -2,13 +2,13 @@ title		= Generic NVT equilibration
 define		=          	; position restrain the protein
 ; Run parameters
 integrator	= md		; leap-frog integrator
-nsteps		= 1000    	; 1 ns
-dt		= 0.001		; 2 fs
+nsteps		= 10000    	; 1 ns
+dt		    = 0.002		; 2 fs
 ; Output control
 nstxout		= 5       	; save coordinates every 0.2 ps
 nstvout		= 5       	; save velocities every 0.2 ps
 nstxtcout	= 5       
-nstenergy	= 5       	; save energies every 0.2 ps
+nstenergy	= 1       	; save energies every 0.2 ps
 nstlog		= 5       	; update log file every 0.2 ps
 
 ; Bond parameters
@@ -45,5 +45,5 @@ pull-nstfout            = 1
 pull-geometry           = distance
 pull-dim                = Y Y Y
 pull-ngroups            = 1
-pull-group1             = BCL_BCL_373
-pull-k1                 = 1.0
+pull-group1 = BCL_BCL_373
+pull-k1 = -10.0
