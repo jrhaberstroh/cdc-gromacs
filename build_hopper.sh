@@ -26,7 +26,7 @@ if [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "ALL" ]; then
     wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-4.6.7.tar.gz
     tar -xvf gromacs-4.6.7.tar.gz
     mv gromacs-4.6.7 $build_dir
-    mv mod-gromacs-4.6.7/src/mdlib/* $build_dir/src/mdlib
+    cp mod-gromacs-4.6.7/src/mdlib/* $build_dir/src/mdlib
     cd $build_dir
     if [ ! -e build ]; then
         mkdir build
