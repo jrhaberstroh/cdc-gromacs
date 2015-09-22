@@ -8,6 +8,7 @@ SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 cd $SRCDIR
 
 
+
 GROMPP=$SRCDIR/mod-gromacs-4.6.7/build/src/kernel/grompp
 MDRUN=$SRCDIR/mod-gromacs-4.6.7/build/src/kernel/mdrun
 
