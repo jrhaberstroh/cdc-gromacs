@@ -9,12 +9,15 @@ cd $SRCDIR
 # \t is delimiter, do not use tabs in HELPTEXT
 read -r -d'\t' HELPTEXT << help 
 Options:
+    \$1       starting configuration
+    \$2       bias (float)
+    \$3       chromophore [367,373]
     GROMPP    grompp executable
     MDRUN     umbrella mdrun executable
     G_ENERGY  g_energy executable
-    BIAS      bias value, %4.2f
-    CHROMO    chromophore for bias, [367,373]
     OUTDIR    output directory
+    INDEX     index group file from forcefield with BCL_BCL_# entries
+    TOP       forcefield topology
     MDPIN     input mdp file (see mdp/test.mdp for template)\t
 help
 
@@ -23,15 +26,17 @@ if [ ${1-} = '-h' ]; then
     exit 0
 fi
 
-   
+START=${1?Requires \$1 START}
+BIAS=${2?Requires \$2 BIAS}
+CHROMO=${3?Requires \$3 CHROMO}
 
 GROMPP=${GROMPP-grompp_sp}
-MDRUN=${MDRUN-$SRCDIR/mod-gromacs-4.6.7/build/src/kernel/mdrun}
+MDRUN=${MDRUN-$HOME/local/gromacs_umb_serial-4.6.7/bin/mdrun_umb_serial}
 G_ENERGY=${G_ENERGY-g_energy_sp}
-BIAS=${BIAS-0}
-CHROMO=${CHROMO-367}
 OUTDIR=${OUTDIR-$SRCDIR}
 MDPIN=${MDPIN-$SRCDIR/mdp/test.mdp}
+INDEX=${INDEX-$SRCDIR/FMO_conf/index.ndx}
+TOP=${TOP-$SRCDIR/FMO_conf/4BCL.top}
 dir=$OUTDIR/testdir_$CHROMO
 BIASSTR=$(printf '%+4.2f' $BIAS | sed 's/+/P/' | sed 's/-/M/')
 BIASSTR=$(echo $BIASSTR | sed 's/\./p/')
@@ -46,9 +51,9 @@ cp $MDPIN $MDP
 sed -i "s/pull-group1.*/pull-group1 = BCL_BCL_$CHROMO/" $MDP
 sed -i "s/pull-k1.*/pull-k1 = $BIAS/" $MDP
 
-$GROMPP -c FMO_conf/em/em.gro -n FMO_conf/index.ndx -p FMO_conf/4BCL.top \
+$GROMPP -c $START -n $INDEX -p $TOP \
         -f $MDP -o $dir/$file -po $dir/$file -maxwarn 1
-$MDRUN -nt 1 -v -deffnm $dir/$file
+$MDRUN -v -deffnm $dir/$file
 
 cd $dir
 $G_ENERGY -f $file.edr -o $file-gap.xvg <<< COM-Pull-En

@@ -36,7 +36,6 @@ fi
 # BUILD
 if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
     echo "BUILDING..."
-    exit
     cd $build_dir
     module purge
     module load PrgEnv-intel
@@ -55,7 +54,10 @@ if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
             -DGMX_DEFAULT_SUFFIX=off                                        \
             -DGMX_BINARY_SUFFIX="_umb_serial"                               \
             -DCMAKE_INSTALL_PREFIX=$HOME/local/gromacs_umb_serial-4.6.7          
-    
+    MODE="COMPILE"
+fi
+
+if [ "$MODE" = "COMPILE" ]; then
     make -j 4 
     make install-mdrun
 fi
