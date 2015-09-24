@@ -3,7 +3,7 @@ define		=          	; position restrain the protein
 ; Run parameters
 integrator	= md		; leap-frog integrator
 nsteps		= 10    	; 1 ns
-dt		    = 0.002		; 2 fs
+dt	        = 0.002		; 2 fs
 ; Output control
 nstxout		= 5       	; save coordinates every 0.2 ps
 nstvout		= 5       	; save velocities every 0.2 ps
@@ -46,4 +46,4 @@ pull-geometry           = direction-periodic
 pull-dim                = Y Y Y
 pull-ngroups            = 1
 pull-group1 = BCL_BCL_373
-pull-k1 = -10.0
+pull-k1 = 0.0

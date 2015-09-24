@@ -1097,59 +1097,57 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     dVdl = 0.0;
     V_cdc = 0.0;
 
-    if (MASTER(cr))
+    t_pullgrp *pgrp;
+    real pull_force;
+    int bcl_count, env_ind;
+    real es_const = 138.935485;
+    rvec xrefr = {0, 0, 0};
+
+    pgrp = &pull->grp[1];
+    pull_force = pgrp->k;
+    int bcl_ind_min = pgrp->ind[0];
+
+    for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
     {
-        t_pullgrp *pgrp;
-        real pull_force;
-        int bcl_count, env_ind;
-        real es_const = 138.935485;
-        rvec xrefr = {0, 0, 0};
-
-        pgrp = &pull->grp[1];
-        pull_force = pgrp->k;
-        int bcl_ind_min = pgrp->ind[0];
-
-        for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
+        int bcl_ind = pgrp->ind[bcl_count];
+        for (env_ind = 0 ; env_ind < md->nr ; env_ind++)
         {
-            int bcl_ind = pgrp->ind[bcl_count];
-            for (env_ind = 0 ; env_ind < md->nr ; env_ind++)
+            if (env_ind == bcl_ind_min)
             {
-                if (env_ind == bcl_ind_min)
-                {
-                    env_ind += BCL_N_ATOMS;
-                }
-                rvec bi;
-                rvec ej;
-                rvec bi_ej_force;
-                rvec bi_ej_dx;
-
-                copy_rvec(x[bcl_ind], bi);
-                copy_rvec(x[env_ind], ej);
-                pbc_dx(pbc, bi, ej, bi_ej_dx);
-                real bi_ej_dist = norm(bi_ej_dx);
-                real bi_ej_couple   = md->chargeA[env_ind] 
-                                      * bcl_cdc_charges[bcl_count]
-                                      * es_const   // electrostatics
-                                      * .8         // screening
-                ;
-                real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
-                real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
-                                                   / bi_ej_dist
-                                                   / bi_ej_dist
-                                                   * pgrp->k; //bias scale
-                svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
-                // printf("Force: %f\n", norm(bi_ej_force));
-                // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,
-                //         bi_ej_dist);
-                rvec_inc(f[bcl_ind], bi_ej_force);
-                rvec_dec(f[env_ind], bi_ej_force);
-                V_cdc += bi_ej_pot;
+                env_ind += BCL_N_ATOMS;
             }
+            rvec bi;
+            rvec ej;
+            rvec bi_ej_force;
+            rvec bi_ej_dx;
+
+            copy_rvec(x[bcl_ind], bi);
+            copy_rvec(x[env_ind], ej);
+            pbc_dx(pbc, bi, ej, bi_ej_dx);
+            real bi_ej_dist = norm(bi_ej_dx);
+            real bi_ej_couple   = md->chargeA[env_ind] 
+                                  * bcl_cdc_charges[bcl_count]
+                                  * es_const   // electrostatics
+                                  * .8         // screening
+            ;
+            real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
+            real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
+                                               / bi_ej_dist
+                                               / bi_ej_dist
+                                               * pgrp->k; //bias scale
+            svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
+            // printf("Force: %f\n", norm(bi_ej_force));
+            // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,
+            //         bi_ej_dist);
+            rvec_inc(f[bcl_ind], bi_ej_force);
+            rvec_dec(f[env_ind], bi_ej_force);
+            V_cdc += bi_ej_pot;
         }
-        
-        *dvdlambda += dVdl;
     }
-    // printf("CDC value: %f kCal/mol\n", V_cdc * 349.757);
+    
+    *dvdlambda += dVdl;
+    
+    printf("\nCDC value: %f cm-1\n", V_cdc * 349.757);
     return (MASTER(cr) ? V_cdc : 0.0);
 }
 
