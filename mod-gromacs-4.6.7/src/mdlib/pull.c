@@ -1146,8 +1146,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     }
     
     *dvdlambda += dVdl;
-    
-    printf("\nCDC value: %f cm-1\n", V_cdc * 349.757);
+    // printf("\nCDC value: %f cm-1\n", V_cdc * 349.757);
     return (MASTER(cr) ? V_cdc : 0.0);
 }
 
