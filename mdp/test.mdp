@@ -2,14 +2,14 @@ title		= Generic NVT equilibration
 define		=          	; position restrain the protein
 ; Run parameters
 integrator	= md		; leap-frog integrator
-nsteps		= 2000    	; 1 ns
+nsteps		= 500000    	; 1 ns
 dt	        = 0.002		; 2 fs
 ; Output control
-nstxout		= 5       	; save coordinates every 0.2 ps
-nstvout		= 5       	; save velocities every 0.2 ps
-nstxtcout	= 5       
+nstxout		= 2000       	; save coordinates every 0.2 ps
+nstvout		= 2000       	; save velocities every 0.2 ps
+nstxtcout	= 2000       
 nstenergy	= 1       	; save energies every 0.2 ps
-nstlog		= 5       	; update log file every 0.2 ps
+nstlog		= 2000       	; update log file every 0.2 ps
 
 ; Bond parameters
 continuation	= no 		; first dynamics run
