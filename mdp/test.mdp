@@ -41,7 +41,8 @@ pcoupl		= no 		; no pressure coupling in NVT
 
 ; Pulling for CDC
 pull                    = constant-force
-pull-nstfout            = 1
+pull-nstxout            = 0
+pull-nstfout            = 0
 pull-geometry           = direction-periodic
 pull-dim                = Y Y Y
 pull-ngroups            = 1

@@ -39,27 +39,24 @@ MDPIN=${MDPIN-$SRCDIR/mdp/test.mdp}
 INDEX=${INDEX-$SRCDIR/FMO_conf/index.ndx}
 TOP=${TOP-$SRCDIR/FMO_conf/4BCL.top}
 RESTART=${RESTART-false}
-dir=$OUTDIR/testdir_$CHROMO
 BIASSTR=$(printf '%+4.2f' $BIAS | sed 's/+/P/' | sed 's/-/M/')
 BIASSTR=$(echo $BIASSTR | sed 's/\./p/')
 file=bias_$BIASSTR
 
-if [ "$RESTART" = 'true' ]; then
-    $MDRUN -v -s $dir/$file.tpr -cpi $dir/$file.cpt
+if [ "$RESTART" = "true" ]; then
+    $MDRUN -v -deffnm $OUTDIR/$file -noappend \
+        -cpi $OUTDIR/$file.cpt -cpo $OUTDIR/$file.cpt -cpt 1 
 else
-    if [ ! -e $dir ]; then
-        mkdir $dir
-    fi
-    MDP=$dir/$file.mdp
+    MDP=$OUTDIR/${file}_IN.mdp
     cp $MDPIN $MDP
     sed -i "s/pull-group1.*/pull-group1 = BCL_BCL_$CHROMO/" $MDP
     sed -i "s/pull-k1.*/pull-k1 = $BIAS/" $MDP
     $GROMPP -c $START -n $INDEX -p $TOP \
-            -f $MDP -o $dir/$file -po $dir/$file -maxwarn 1
-    $MDRUN -v -deffnm $dir/$file -cpt 1
+            -f $MDP -o $OUTDIR/$file -po $OUTDIR/$file -maxwarn 1
+    $MDRUN -v -deffnm $OUTDIR/$file -cpo $OUTDIR/$file.cpt -cpt 1
 fi 
 
-cd $dir
+cd $OUTDIR
 $G_ENERGY -f $file.edr -o $file-gap.xvg <<< COM-Pull-En
 TWONUMMATCH="^ \+[0-9.]\+ \+\-\?[0-9.]\+ *$"
 cat $file-gap.xvg | grep -v "$TWONUMMATCH" \
