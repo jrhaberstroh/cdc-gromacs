@@ -55,11 +55,13 @@ else
             -f $MDP -o $OUTDIR/$file -po $OUTDIR/$file -maxwarn 1
     $MDRUN -v -deffnm $OUTDIR/$file -cpo $OUTDIR/$file.cpt -cpt 1
 fi 
+echo "DONE!"
 
-cd $OUTDIR
-$G_ENERGY -f $file.edr -o $file-gap.xvg <<< COM-Pull-En
-TWONUMMATCH="^ \+[0-9.]\+ \+\-\?[0-9.]\+ *$"
-cat $file-gap.xvg | grep -v "$TWONUMMATCH" \
-        > $file-gap_cm.xvg
-cat $file-gap.xvg | grep "$TWONUMMATCH" | awk '{print "    " $1 "    " $2*349.757}' \
-        >> $file-gap_cm.xvg
+# For converting xvg files to cm-1 units
+# cd $OUTDIR
+# $G_ENERGY -f $file.edr -o $file-gap.xvg <<< COM-Pull-En
+# TWONUMMATCH="^ \+[0-9.]\+ \+\-\?[0-9.]\+ *$"
+# cat $file-gap.xvg | grep -v "$TWONUMMATCH" \
+#         > $file-gap_cm.xvg
+# cat $file-gap.xvg | grep "$TWONUMMATCH" | awk '{print "    " $1 "    " $2*349.757}' \
+#         >> $file-gap_cm.xvg

@@ -48,13 +48,14 @@ if [ -z ${PBS_JOBID+x} ]; then
             -l walltime=$WALLTIME \
             -q $QUEUE \
             -v CHROMO=$chromo,njobs=$njobs,SRCNAME=$SRCNAME\
-            -N ${QUEUE}_${name}_${chromo}  \
+            -N ${QUEUE}_${name}_${chromo} \
             -o $OUTDIR \
             -j oe \
             ${SRCNAME}.sh)
+    JOBID=${JOBID%%.*}
     SCRIPT_PATH=${OUTDIR}/${SRCNAME}_${chromo}_${JOBID}.sh
     echo "$JOBID"
-    echo "Saving to $SCRIPT_PATH"
+    echo "Saving original submit script to $SCRIPT_PATH"
     cp ${SRCNAME}.sh $SCRIPT_PATH
     exit
 fi
@@ -68,9 +69,10 @@ module load gromacs/4.6.7-sp
 module unload PrgEnv-pgi
 module load PrgEnv-intel
 
-SIMDIR_PROPOSED=$OUTDIR/simout_${CHROMO}_${PBS_JOBID}
+JOBID_CLEAN=${PBS_JOBID%%.*}
+SIMDIR_PROPOSED=$OUTDIR/simout_${CHROMO}_${JOBID_CLEAN}
 SIMDIR=${SIMDIR-$SIMDIR_PROPOSED}
-PBS_FIRST_JOBID=echo $SIMDIR | sed 's/.*_//' | sed 's/\..*//'
+PBS_FIRST_JOBID=$(echo $SIMDIR | sed 's/.*_//' | sed 's/\..*//')
 SCRIPT_PATH=$OUTDIR/${SRCNAME}_${CHROMO}_${PBS_FIRST_JOBID}.sh
 JOBDIR=$(echo $SIMDIR | sed 's/simout/jobout/')
 echo "SIMDIR: $SIMDIR"
@@ -100,7 +102,7 @@ if [ $PBS_MAGIC_REPEAT_NR -lt $MAX_REPEAT ]; then
         -v PBS_MAGIC_REPEAT_NR=$INC,CHROMO=$CHROMO,njobs=$njobs,SIMDIR=$SIMDIR,SRCNAME=$SRCNAME \
         -W depend=afternotok:$PBS_JOBID \
         -N ${PBS_O_QUEUE}_${name}_${CHROMO}_$INC \
-        -o $OUTDIR/${PBS_O_QUEUE}_${name}_${CHROMO}.o${PBS_FIRST_JOBID} \
+        -o $OUTDIR/${PBS_O_QUEUE}_${name}_${CHROMO}.o${PBS_FIRST_JOBID}_$INC \
         -j oe \
         $SCRIPT_PATH
 fi
@@ -146,7 +148,7 @@ echo "========================="
 OUTDIR=$SIMDIR RESTART=$RESTART $UMBRELLA $start_pos \$bias $CHROMO
 SUBMIT_HELPER
 chmod +x ${run_scr}
-TFOUT="$JOBDIR/job_%t.txt"
+TFOUT="$JOBDIR/job_%t_${PBS_MAGIC_REPEAT_NR}.txt"
 echo "Submitting $njobs jobs on $nnodes nodes in directory $(pwd)"
 echo "PBS_MAGIC_REPEAT_NR=$PBS_MAGIC_REPEAT_NR"
 tf -t $njobs -n $nnodes -o $TFOUT -e $TFOUT ${run_scr}
