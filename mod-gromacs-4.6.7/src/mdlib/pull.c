@@ -1107,19 +1107,15 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     pull_force = pgrp->k;
     int bcl_ind_min = pgrp->ind[0];
 
-    for (env_ind = 0 ; env_ind < md->nr ; env_ind++)
+    for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
     {
-        if (env_ind == bcl_ind_min)
+        int bcl_ind = pgrp->ind[bcl_count];
+        for (env_ind = 0 ; env_ind < md->nr ; env_ind++)
         {
-            env_ind += BCL_N_ATOMS;
-            printf("\n");
-        }
-        real V_cdc_env = 0;
-        printf("\nCDC");
-        for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
-        {
-            int bcl_ind = pgrp->ind[bcl_count];
-
+            if (env_ind == bcl_ind_min)
+            {
+                env_ind += BCL_N_ATOMS;
+            }
             rvec bi;
             rvec ej;
             rvec bi_ej_force;
@@ -1145,14 +1141,10 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             //         bi_ej_dist);
             rvec_inc(f[bcl_ind], bi_ej_force);
             rvec_dec(f[env_ind], bi_ej_force);
-            V_cdc     += bi_ej_pot;
-            V_cdc_env += bi_ej_pot;
-        }
-        if (env_ind < bcl_ind_min)
-        {
-            printf(" % 8.5e", V_cdc_env);
+            V_cdc += bi_ej_pot;
         }
     }
+    
     *dvdlambda += dVdl;
     // printf("\nCDC value: %f cm-1\n", V_cdc * 349.757);
     return (MASTER(cr) ? V_cdc : 0.0);
