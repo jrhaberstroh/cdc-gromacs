@@ -7,24 +7,27 @@ cd $SRCDIR
 
 MODE=${1-ALL}
 
-INSTRUCTIONS="Pass ALL, BUILD, COMPILE, or INITIALIZE to \$1"
+INSTRUCTIONS="Pass ALL, INIT, CMAKE, or MAKE to \$1"
 
 if [ "$MODE" = '-h' ]; then
     echo $INSTRUCTIONS
     exit 0
 fi
 
-if ! ( [ "$MODE" = "MAKE" ] || [ "$MODE" = "BUILD" ] || [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "ALL" ] ); then
+if ! ( [ "$MODE" = "MAKE" ] || [ "$MODE" = "BUILD" ] || [ "$MODE" = "INIT" ] || [ "$MODE" = "ALL" ] ); then
     echo "Input Error: $INSTRUCTIONS"
     exit 300
 fi
 
 
-# INITIALIZE
-if [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "ALL" ]; then
+# INIT
+if [ "$MODE" = "INIT" ] || [ "$MODE" = "ALL" ]; then
     echo "INITIALIZING..."
     wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-4.6.7.tar.gz
     tar -xvf gromacs-4.6.7.tar.gz
+    if [ -e $build_dir ]; then
+        rm -r $build_dir
+    fi
     mv gromacs-4.6.7 $build_dir
     cd $build_dir
     if [ ! -e build ]; then
@@ -32,8 +35,8 @@ if [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "ALL" ]; then
     fi
 fi
 
-# BUILD
-if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
+# CMAKE
+if [ "$MODE" = "CMAKE" ] || [ "$MODE" == "ALL" ]; then
     echo "BUILDING..."
     cd $build_dir
     module purge
@@ -54,13 +57,13 @@ if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
             -DGMX_DEFAULT_SUFFIX=off                                        \
             -DGMX_BINARY_SUFFIX="_umb_serial"                               \
             -DCMAKE_INSTALL_PREFIX=$HOME/local/gromacs_umb_serial-4.6.7          
-    MODE="MAKE"
 fi
 
+# MAKE
 if [ "$MODE" = "MAKE" ]; then
     cd $SRCDIR
     cp mod-gromacs-4.6.7/src/mdlib/* $build_dir/src/mdlib
     cd $build_dir/build
-    make -j 4 
+    make -j 1
     make install-mdrun
 fi
