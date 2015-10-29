@@ -1112,10 +1112,10 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         if (env_ind == bcl_ind_min)
         {
             env_ind += BCL_N_ATOMS;
-            printf("\n")
+            printf("\n");
         }
         real V_cdc_env = 0;
-        printf("\nCDC")
+        printf("\nCDC");
         for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
         {
             int bcl_ind = pgrp->ind[bcl_count];
@@ -1150,7 +1150,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         }
         if (env_ind < bcl_ind_min)
         {
-            printf(" % 8.5e", V_cdc_env)
+            printf(" % 8.5e", V_cdc_env);
         }
     }
     *dvdlambda += dVdl;
