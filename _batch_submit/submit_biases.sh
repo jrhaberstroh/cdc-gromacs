@@ -8,7 +8,7 @@ set -o errexit
 #  CONFIGURATION
 ################################################################################
 # Manual config
-OUTDIR=$SCRATCH/2015-10-FmoUmbrella2/27-debug
+OUTDIR=$SCRATCH/2015-10-FmoUmbrella2/29-debug
 UMBRELLA=$HOME/Code/umbrellamacs2/gap-umbrella.sh
 STARTDIR=$SCRATCH/2015-07-FmoEd/eq4-md_long/starts
 MAX_REPEAT=5
@@ -56,7 +56,7 @@ if [ -z ${PBS_JOBID+x} ]; then
     SCRIPT_PATH=${OUTDIR}/${SRCNAME}_${chromo}_${JOBID}.sh
     echo "$JOBID"
     echo "Saving original submit script to $SCRIPT_PATH"
-    cp ${SRCNAME}.sh $SCRIPT_PATH
+    cp $SRCDIR/${SRCNAME}.sh $SCRIPT_PATH
     exit
 fi
 
