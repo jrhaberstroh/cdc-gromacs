@@ -116,14 +116,17 @@ RESTART=false
 if [ "$PBS_MAGIC_REPEAT_NR" -gt 1 ]; then
     RESTART=true
     if [ -d output ]; then
-        cd output
-        for f in `ls *.out`; do
-            mv $f ${f}_$(( PBS_MAGIC_REPEAT_NR - 1 ))
+        if [ ! -e true_output ]; then
+            mkdir true_output
+        fi
+        for f in `ls output/*.out`; do
+            fname=$(basename $f)
+            mv $f true_output/${fname%%.out}_$(( PBS_MAGIC_REPEAT_NR - 1 )).out
         done
-        for f in `ls *.err`; do
-            mv $f ${f}_$(( PBS_MAGIC_REPEAT_NR - 1 ))
+        for f in `ls output/*.err`; do
+            fname=$(basename $f)
+            mv $f true_output/${fname%%.err}_$(( PBS_MAGIC_REPEAT_NR - 1 )).err
         done
-        cd -
     fi
 fi
 # start_pos
