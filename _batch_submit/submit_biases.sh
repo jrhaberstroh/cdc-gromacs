@@ -115,6 +115,16 @@ cd $JOBDIR
 RESTART=false
 if [ "$PBS_MAGIC_REPEAT_NR" -gt 1 ]; then
     RESTART=true
+    if [ -d output ]; then
+        cd output
+        for f in `ls *.out`; do
+            mv $f ${f}_$(( PBS_MAGIC_REPEAT_NR - 1 ))
+        done
+        for f in `ls *.err`; do
+            mv $f ${f}_$(( PBS_MAGIC_REPEAT_NR - 1 ))
+        done
+        cd -
+    fi
 fi
 # start_pos
 while : ; do
