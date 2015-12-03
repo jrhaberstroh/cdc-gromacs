@@ -1,3 +1,7 @@
+#!/bin/bash
+# ab_test.sh
+
+
 #     $1       starting configuration
 #     $2       bias (float)
 #     $3       chromophore [367,373]
@@ -17,13 +21,10 @@ if ! [ -e $SRCDIR/out-ab_test ]; then
     mkdir $SRCDIR/out-ab_test
 fi
 
-
-
-
 GROMPP=grompp MDRUN=$HOME/local/gromacs_umb_serial-4.6.7/bin/mdrun_umb_serial \
-    G_ENERGY=g_energy OUTDIR=$SRCDIR/out-ab_test \
-    INDEX=???.ndx                   \
-    TOP=???.top                       \
-    MDPIN=test_10step.mdp          \
-    RESTART=false                 \
-    ./gap_umbrella.sh ???.gro 0.0 368
+    G_ENERGY=g_energy OUTDIR=$SRCDIR/out-ab_test                              \
+    INDEX=FMO_conf/index.ndx                                                  \
+    TOP=FMO_conf/4BCL.top                                                     \
+    MDPIN=mdp/test_10step.mdp                                                 \
+    RESTART=false                                                             \
+    ./gap-umbrella.sh FMO_conf/em/em.gro 0.0 368
