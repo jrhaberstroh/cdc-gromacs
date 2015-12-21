@@ -71,7 +71,7 @@ cdctraj=$SRCDIR/cdc-fmo/cdctraj.sh
 
 TOP=$base/FMO_conf/4BCL_pp.top                                                \
     ATOMS=99548                                                               \
-    TRJLEN=10                                                                 \
+    TRJLEN=2                                                                  \
     NODEL=false                                                               \
     $SRCDIR/cdc-fmo/cdctraj.sh $SRCDIR/out-ab_test/traj.gro                   \
      > $SRCDIR/out-ab_test/cdc-fmo.txt
@@ -95,5 +95,13 @@ rm .pysum.py
 
 # Comparison
 #==============================================================================
-print site368-A.txt
-print site368-B.txt
+cat site368-A.txt | head -n 1
+for l in $(cat site368-B.txt | head -n 1); do
+    echo "357.3 * $l" | bc
+done
+
+cat site368-A.txt | head -n 2 | tail -n 1
+for l in $(cat site368-B.txt | head -n 2 | tail -n 1); do
+    echo "349.757 * $l" | bc
+done
+
