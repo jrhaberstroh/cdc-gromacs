@@ -1102,14 +1102,16 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     int bcl_count, env_ind;
     real es_const = 138.935485;
     rvec xrefr = {0, 0, 0};
-
+    
     pgrp = &pull->grp[1];
     pull_force = pgrp->k;
     int bcl_ind_min = pgrp->ind[0];
 
+    real site_one_couple = 0.0;
     for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
     {
         int bcl_ind = pgrp->ind[bcl_count];
+        int resnr = -1;
         for (env_ind = 0 ; env_ind < md->nr ; env_ind++)
         {
             if (env_ind == bcl_ind_min)
@@ -1120,7 +1122,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             rvec ej;
             rvec bi_ej_force;
             rvec bi_ej_dx;
-
+            
             copy_rvec(x[bcl_ind], bi);
             copy_rvec(x[env_ind], ej);
             pbc_dx(pbc, bi, ej, bi_ej_dx);
@@ -1142,8 +1144,14 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             rvec_inc(f[bcl_ind], bi_ej_force);
             rvec_dec(f[env_ind], bi_ej_force);
             V_cdc += bi_ej_pot;
+            if (env_ind < 16)
+            {
+                site_one_couple += bi_ej_pot;
+            }
         }
     }
+    printf("CDC site one: %f cm-1\n", bcl_count,
+            site_one_couple * 349.757);
     
     *dvdlambda += dVdl;
     // printf("\nCDC value: %f cm-1\n", V_cdc * 349.757);

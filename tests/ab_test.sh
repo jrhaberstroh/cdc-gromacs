@@ -1,7 +1,7 @@
 #!/bin/bash
 # ab_test.sh
 SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-
+OUT=$SRCDIR/out-ab_test
 cd $SRCDIR/..
 
 if [ -e $SRCDIR/out-ab_test ]; then
@@ -33,21 +33,25 @@ GROMPP=grompp MDRUN=$HOME/local/gromacs_umb_serial-4.6.7/bin/mdrun_umb_serial \
     TOP=$base/FMO_conf/4BCL.top                                               \
     MDPIN=$base/mdp/test_10step.mdp                                           \
     RESTART=false                                                             \
-    $base/gap-umbrella.sh $base/FMO_conf/em/em.gro 0.0 368
+    $base/gap-umbrella.sh $base/FMO_conf/em/em.gro 0.0 368 | grep "^CDC" > $SRCDIR/out-ab_test/site368-md.txt
 
-cd $SRCDIR/out-ab_test
+cd $OUT
 # G_ENERGY
 g_energy -f bias_P0p00.edr -o bias_P0p00.xvg <<out
 COM-Pull
 
 out
-# G_ENERGY
+# # END G_ENERGY
+
+
 # TRJCONV
 trjconv -f bias_P0p00.trr -s bias_P0p00.tpr -o traj.gro <<out
 System
 
 out
-# TRJCONV
+# # END TRJCONV
+
+
 cat bias_P0p00.xvg | grep -v ^@  | grep -v ^# | \
     awk '{print $2}' > site368-B.txt 
 
@@ -74,34 +78,36 @@ TOP=$base/FMO_conf/4BCL_pp.top                                                \
     TRJLEN=2                                                                  \
     NODEL=false                                                               \
     $SRCDIR/cdc-fmo/cdctraj.sh $SRCDIR/out-ab_test/traj.gro                   \
-     > $SRCDIR/out-ab_test/cdc-fmo.txt
+     > $SRCDIR/out-ab_test/allsite-cdc.txt
 
 cd $SRCDIR/out-ab_test
-awk '(NR + 1) % 7 == 0' cdc-fmo.txt  > site368_split.txt
+awk '(NR + 1) % 7 == 0' allsite-cdc.txt  > site368-cdc.txt
 
-(
-cat <<'pysum'
-with open("site368_split.txt") as f:
-    for l in f:
-        larr = [float(x) for x in l.split()]
-        print sum(larr)
-pysum
-) > .pysum.py
-python .pysum.py > site368-A.txt
-rm .pysum.py
+# (
+# cat <<'pysum'
+# with open("site368_split.txt") as f:
+#     for l in f:
+#         larr = [float(x) for x in l.split()]
+#         print sum(larr)
+# pysum
+# ) > .pysum.py
+# python .pysum.py > site368-cdc.txt
+# rm .pysum.py
 
 
 
 
 # Comparison
 #==============================================================================
-cat site368-A.txt | head -n 1
-for l in $(cat site368-B.txt | head -n 1); do
-    echo "357.3 * $l" | bc
-done
-
-cat site368-A.txt | head -n 2 | tail -n 1
-for l in $(cat site368-B.txt | head -n 2 | tail -n 1); do
-    echo "349.757 * $l" | bc
-done
+cat site368-cdc.txt
+cat site368-md.txt
+# cat site368-cdc.txt | head -n 1
+# for l in $(cat site368-md.txt | head -n 1); do
+#     echo "357.3 * $l" | bc
+# done
+# 
+# cat site368-cdc.txt | head -n 2 | tail -n 1
+# for l in $(cat site368-md.txt | head -n 2 | tail -n 1); do
+#     echo "349.757 * $l" | bc
+# done
 
