@@ -73,7 +73,8 @@ cat bias_P0p00.xvg | grep -v ^@  | grep -v ^# | \
 
 cdctraj=$SRCDIR/cdc-fmo/cdctraj.sh
 
-TOP=$base/FMO_conf/4BCL_pp.top                                                \
+PYARGS="-res 1" \
+    TOP=$base/FMO_conf/4BCL_pp.top                                                \
     ATOMS=99548                                                               \
     TRJLEN=2                                                                  \
     NODEL=false                                                               \
