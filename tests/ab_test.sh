@@ -73,8 +73,8 @@ cat bias_P0p00.xvg | grep -v ^@  | grep -v ^# | \
 
 cdctraj=$SRCDIR/cdc-fmo/cdctraj.sh
 
-PYARGS="-res 1" \
-    TOP=$base/FMO_conf/4BCL_pp.top                                                \
+# PYARGS="-res 1" \
+TOP=$base/FMO_conf/4BCL_pp.top                                                \
     ATOMS=99548                                                               \
     TRJLEN=2                                                                  \
     NODEL=false                                                               \
@@ -100,15 +100,24 @@ awk '(NR + 1) % 7 == 0' allsite-cdc.txt  > site368-cdc.txt
 
 # Comparison
 #==============================================================================
-cat site368-cdc.txt
-cat site368-md.txt
+cd $OUT
+if [ -e $OUT/comparison.txt ]; then
+    rm $OUT/comparison.txt
+fi
+# cat site368-cdc.txt
+# cat site368-md.txt
 # cat site368-cdc.txt | head -n 1
-# for l in $(cat site368-md.txt | head -n 1); do
-#     echo "357.3 * $l" | bc
-# done
-# 
+< site368-cdc.txt head -n 1 | while read l; do
+    echo "$l" | cut -d' ' -f1- | wc -w
+    echo "$l" | cut -d' ' -f1-
+    echo "$l" | cut -d' ' -f1- >> $OUT/comparison.txt
+done
+
+echo number 2 
 # cat site368-cdc.txt | head -n 2 | tail -n 1
-# for l in $(cat site368-md.txt | head -n 2 | tail -n 1); do
-#     echo "349.757 * $l" | bc
-# done
+< site368-md.txt head -n 2 | tail -n 1 | while read l; do
+    echo "$l" | cut -d',' -f2- | wc -w
+    echo "$l" | cut -d',' -f2-
+    echo "$l" | cut -d',' -f2- >> $OUT/comparison.txt
+done
 

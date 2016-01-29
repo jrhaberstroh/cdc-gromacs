@@ -5,7 +5,7 @@ SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 build_dir=$SRCDIR/gromacs-srcmod-4.6.7
 cd $SRCDIR
 
-MODE=${1-ALL}
+MODE=${1-MAKE}
 
 INSTRUCTIONS="Pass ALL, BUILD, COMPILE, or INITIALIZE to \$1"
 
