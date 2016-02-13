@@ -65,6 +65,7 @@
 
 #define BCL_N_ATOMS 140
 
+// Computed as Qb0 - Qb1
 static double bcl_cdc_charges[BCL_N_ATOMS] = {0.017,0.027,0.021,0.000,0.053,0.000,0.030,0.000,0.028,-0.020,-0.031,-0.009,0.000,-0.003,0.000,-0.004,0.000,0.000,0.000,-0.004,0.000,0.000,0.001,0.000,0.000,-0.003,0.001,0.001,0.014,-0.023,-0.070,0.027,0.027,0.001,0.000,0.000,0.000,0.023,0.013,0.000,0.000,0.000,0.000,0.039,-0.041,-0.060,-0.005,0.000,-0.003,0.000,-0.003,0.000,0.000,0.000,-0.004,0.000,0.000,-0.001,0.000,0.000,0.000,0.012,-0.053,-0.047,0.018,-0.004,-0.002,0.000,0.000,0.000,0.027,0.009,-0.002,0.000,-0.002,0.002,0.003,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000};
 
 
@@ -273,7 +274,7 @@ static int BCL4_resnr[PROTEIN_N_ATOMS] =
 202,202,203,203,203,203,203,203,203,203,203,203,203,203,203,
 203,204,204,204,204,204,204,204,204,204,204,204,204,204,204,
 204,204,205,205,205,205,205,205,205,205,205,205,205,205,205,
-205,205,206,206,206,206,206,206,206,210,207,207,207,207,207,
+205,205,206,206,206,206,206,206,206,207,207,207,207,207,207,
 207,208,208,208,208,208,208,208,208,208,208,208,208,208,208,
 209,209,209,209,209,209,209,209,209,209,209,209,209,209,209,
 209,210,210,210,210,210,210,210,211,211,211,211,211,211,211,
@@ -427,10 +428,9 @@ static int BCL4_resnr[PROTEIN_N_ATOMS] =
 352,352,352,352,352,352,353,353,353,353,353,353,353,353,353,
 353,353,353,353,353,353,353,354,354,354,354,354,354,354,354,
 354,354,354,354,354,354,354,354,354,354,354,355,355,355,355,
-355,355,355,355,355,355,355,358,355,358,355,355,355,355,355,
+355,355,355,355,355,355,355,355,355,355,355,355,355,355,355,
 355,355,356,356,356,356,356,356,356,356,356,356,357,357,357,
 357,357,357,357,357,357,357,357,357,357,357,357,357,357,357};
-
 
 static void pull_print_x_grp(FILE *out, gmx_bool bRef, ivec dim, t_pullgrp *pgrp)
 {
@@ -1440,8 +1440,6 @@ static void do_pull_pot(int ePull,
 //     dvec        f;          /* force due to the pulling/constraining */
 // } t_pullgrp;
 
-// static float bcl_cdc_charges[140] = {0.017,0.027,0.021,0.000,0.053,0.000,0.030,0.000,0.028,-0.020,-0.031,-0.009,0.000,-0.003,0.000,-0.004,0.000,0.000,0.000,-0.004,0.000,0.000,0.001,0.000,0.000,-0.003,0.001,0.001,0.014,-0.023,-0.070,0.027,0.027,0.001,0.000,0.000,0.000,0.023,0.013,0.000,0.000,0.000,0.000,0.039,-0.041,-0.060,-0.005,0.000,-0.003,0.000,-0.003,0.000,0.000,0.000,-0.004,0.000,0.000,-0.001,0.000,0.000,0.000,0.012,-0.053,-0.047,0.018,-0.004,-0.002,0.000,0.000,0.000,0.027,0.009,-0.002,0.000,-0.002,0.002,0.003,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000};
-
 real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     t_commrec *cr, double t, real lambda,
                     rvec *x, rvec *f, tensor vir, real *dvdlambda)
@@ -1457,7 +1455,14 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
 
     // /* Distribute forces over pulled groups */
     // apply_forces(pull, md, DOMAINDECOMP(cr) ? cr->dd->ga2la : NULL, f);
-
+    
+    int i = 0;
+    for (i = 0 ; i < PROTEIN_N_ATOMS - 1 ; i++)
+    {
+        if (BCL4_resnr[i+1] < BCL4_resnr[i]){
+            fprintf(stderr, "\nERROR!!!!!! site %d has a non-ascending resnr", i);
+        }
+    }
 
     dVdl = 0.0;
     V_cdc = 0.0;
@@ -1473,8 +1478,15 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     int bcl_ind_min = pgrp->ind[0];
 
     int site_count = BCL4_resnr[PROTEIN_N_ATOMS-1] - BCL4_resnr[0] + 1;
-    float * site_n_couple = (float *)calloc(site_count, sizeof(float));
-    int site_min = BCL4_resnr[0];
+    float * site_n_couple = (float *) calloc(site_count, sizeof(float));
+    for (i = 0 ; i < site_count ; i ++)
+    {
+        site_n_couple[i] = 0.0;
+    }
+    fprintf(stderr, "\nDEBUG SITES: %d\n", site_count);
+    fprintf(stderr, "\nDEBUG MININD: %d\n", bcl_ind_min);
+
+    real K_es = es_const / 4.0 * 3.0 / 3.14159265359;
 
     for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
     {
@@ -1492,18 +1504,28 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             
             copy_rvec(x[bcl_ind], bi);
             copy_rvec(x[env_ind], ej);
+            
             pbc_dx(pbc, bi, ej, bi_ej_dx);
             real bi_ej_dist = norm(bi_ej_dx);
             real bi_ej_couple   = md->chargeA[env_ind] 
-                                  * bcl_cdc_charges[bcl_count]
-                                  * es_const   // electrostatics
-                                  * .8         // screening
+                                  * -bcl_cdc_charges[bcl_count]
+                                  * K_es       // electrostatics
+                                  * .3333      // screening
             ;
             real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
             real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
                                                / bi_ej_dist
                                                / bi_ej_dist
                                                * pgrp->k; //bias scale
+            if (bcl_count == 0 && env_ind == 0)
+            {
+                fprintf(stderr, "\nDEBUG BCL: %f %f %f (%f)\n", bi[0], bi[1], bi[2], -bcl_cdc_charges[bcl_count]);
+                fprintf(stderr, "\nDEBUG ENV: %f %f %f (%f)\n", ej[0], ej[1], ej[2], md->chargeA[env_ind]);
+                fprintf(stderr, "\nDEBUG DIST: %f\n", bi_ej_dist);
+                fprintf(stderr, "\nDEBUG KES: %f\n", K_es);
+                fprintf(stderr, "\nDEBUG INTQ: %f\n", md->chargeA[env_ind] * -bcl_cdc_charges[bcl_count]);
+                fprintf(stderr, "\nDEBUG INTR: %f\n", bi_ej_pot * 349.757);
+            }
             svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
             // printf("Force: %f\n", norm(bi_ej_force));
             // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,
@@ -1514,13 +1536,13 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             
             if (env_ind < PROTEIN_N_ATOMS)
             {
-                site_n_couple[ BCL4_resnr[env_ind] - site_min ] += bi_ej_pot;
+                site_n_couple[ BCL4_resnr[env_ind] - BCL4_resnr[0] ] += bi_ej_pot;
             }
         }
     }
     int resnr;
     printf("CDC[cm-1], ");
-    for (resnr = 0 ; resnr < site_count-1 ; resnr++)
+    for (resnr = 0 ; resnr < site_count ; resnr++)
     {
         if (resnr != 0)
         {
@@ -1529,6 +1551,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         printf("%f", site_n_couple[resnr] * 349.757);
     }
     printf("\n");
+    free(site_n_couple);
 
     *dvdlambda += dVdl;
     // printf("\nCDC value: %f cm-1\n", V_cdc * 349.757);

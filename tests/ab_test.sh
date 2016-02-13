@@ -1,9 +1,71 @@
 #!/bin/bash
 # ab_test.sh
+set -o errexit
+set -o nounset
+
 SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 OUT=$SRCDIR/out-ab_test
 cd $SRCDIR/..
+base=$SRCDIR/..
+cdctraj=$SRCDIR/cdc-fmo/cdctraj.sh
+ALL=$OUT/allsite-cdc.txt
+NALL=$OUT/allsite-noise.txt
+RESID=${1?Please pass resid to \$1}
+S_CDC=$OUT/site-cdc.txt
+S_MD=$OUT/site-MD.txt
+S_NOISE=$OUT/site-noise.txt
+NOISE=${NOISE-false}
+PYEXTRA=${PYEXTRA-}
+FAST=${FAST-false}
 
+compare () {
+# Comparison
+#==============================================================================
+cd $OUT
+num=$(echo $RESID - 366 | bc)
+COMP=$OUT/comparison.txt
+cd $OUT
+if [ -e $COMP ]; then
+    rm $COMP
+fi
+
+# Leave exactly two of three sections uncommented
+awk "(NR - $num) % 7 == 0" $ALL   > $S_CDC
+< $S_CDC head -n 1 | tail -n 1 | while read l; do
+    echo "$l" | cut -d' ' -f1- | wc -w
+    echo "$l" | cut -d' ' -f1-
+    echo "$l" | cut -d' ' -f1- >> $COMP
+done
+
+
+if [ "$NOISE" == true ]; then
+    awk "(NR - $num) % 7 == 0" $NALL  > $S_NOISE
+    < $S_NOISE head -n 1 | tail -n 1 | while read l; do
+        echo "$l" | cut -d' ' -f1- | wc -w
+        echo "$l" | cut -d' ' -f1-
+        echo "$l" | cut -d' ' -f1- >> $COMP
+    done
+else
+    # cat site-cdc.txt | head -n 2 | tail -n 1
+    < $S_MD head -n 2 | tail -n 1 | while read l; do
+        echo "$l" | cut -d',' -f2- | wc -w
+        echo "$l" | cut -d',' -f2-
+        echo "$l" | cut -d',' -f2- >> $COMP
+    done
+fi
+
+cd $SRCDIR
+python scplot.py
+}
+
+if [ "$FAST" == "true" ]; then
+    compare
+    exit
+fi
+
+
+
+./build_ubuntu.sh
 if [ -e $SRCDIR/out-ab_test ]; then
     rm -r $SRCDIR/out-ab_test
 fi
@@ -12,7 +74,7 @@ if ! [ -e $SRCDIR/out-ab_test ]; then
     mkdir $SRCDIR/out-ab_test
 fi
 
-base=$SRCDIR/..
+
 
 # gap-umbrella.sh
 #==============================================================================
@@ -28,12 +90,12 @@ base=$SRCDIR/..
 #     RESTART   (true/false): run job as a restart?
 #     MDPIN     input mdp file (see mdp/test.mdp for template)
 GROMPP=grompp MDRUN=$HOME/local/gromacs_umb_serial-4.6.7/bin/mdrun_umb_serial \
-    G_ENERGY=g_energy OUTDIR=$SRCDIR/out-ab_test                              \
+    G_ENERGY=g_energy OUTDIR=$OUT                                             \
     INDEX=$base/FMO_conf/index.ndx                                            \
     TOP=$base/FMO_conf/4BCL.top                                               \
     MDPIN=$base/mdp/test_10step.mdp                                           \
     RESTART=false                                                             \
-    $base/gap-umbrella.sh $base/FMO_conf/em/em.gro 0.0 368 | grep "^CDC" > $SRCDIR/out-ab_test/site368-md.txt
+    $base/gap-umbrella.sh $base/FMO_conf/em/em.gro 0.0 $RESID | grep "^CDC" > $S_MD
 
 cd $OUT
 # G_ENERGY
@@ -53,7 +115,7 @@ out
 
 
 cat bias_P0p00.xvg | grep -v ^@  | grep -v ^# | \
-    awk '{print $2}' > site368-B.txt 
+    awk '{print $2}' > site-B.txt 
 
 
 
@@ -71,53 +133,26 @@ cat bias_P0p00.xvg | grep -v ^@  | grep -v ^# | \
 #                NOTE: Not error checked to assert that TRJLEN <= numframes
 #     NODEL    - If true, do not delete temp folder upon initiation
 
-cdctraj=$SRCDIR/cdc-fmo/cdctraj.sh
 
-# PYARGS="-res 1" \
 TOP=$base/FMO_conf/4BCL_pp.top                                                \
     ATOMS=99548                                                               \
     TRJLEN=2                                                                  \
     NODEL=false                                                               \
-    $SRCDIR/cdc-fmo/cdctraj.sh $SRCDIR/out-ab_test/traj.gro                   \
-     > $SRCDIR/out-ab_test/allsite-cdc.txt
-
-cd $SRCDIR/out-ab_test
-awk '(NR + 1) % 7 == 0' allsite-cdc.txt  > site368-cdc.txt
-
-# (
-# cat <<'pysum'
-# with open("site368_split.txt") as f:
-#     for l in f:
-#         larr = [float(x) for x in l.split()]
-#         print sum(larr)
-# pysum
-# ) > .pysum.py
-# python .pysum.py > site368-cdc.txt
-# rm .pysum.py
+    PYARGS="-debug $PYEXTRA"                                                  \
+    $SRCDIR/cdc-fmo/cdctraj.sh $OUT/traj.gro                                  \
+     > $ALL
 
 
-
-
-# Comparison
-#==============================================================================
-cd $OUT
-if [ -e $OUT/comparison.txt ]; then
-    rm $OUT/comparison.txt
+if [ "$NOISE" == true ]; then
+    TOP=$base/FMO_conf/4BCL_pp.top                                                \
+        ATOMS=99548                                                               \
+        TRJLEN=2                                                                  \
+        NODEL=false                                                               \
+        PYARGS="-debug $PYEXTRA -noise .001"                                      \
+        $SRCDIR/cdc-fmo/cdctraj.sh $OUT/traj.gro                                  \
+         > $NALL
 fi
-# cat site368-cdc.txt
-# cat site368-md.txt
-# cat site368-cdc.txt | head -n 1
-< site368-cdc.txt head -n 1 | while read l; do
-    echo "$l" | cut -d' ' -f1- | wc -w
-    echo "$l" | cut -d' ' -f1-
-    echo "$l" | cut -d' ' -f1- >> $OUT/comparison.txt
-done
 
-echo number 2 
-# cat site368-cdc.txt | head -n 2 | tail -n 1
-< site368-md.txt head -n 2 | tail -n 1 | while read l; do
-    echo "$l" | cut -d',' -f2- | wc -w
-    echo "$l" | cut -d',' -f2-
-    echo "$l" | cut -d',' -f2- >> $OUT/comparison.txt
-done
 
+
+compare
