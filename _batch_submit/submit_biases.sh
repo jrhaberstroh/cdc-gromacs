@@ -8,7 +8,7 @@ set -o errexit
 #  CONFIGURATION
 ################################################################################
 # Manual config
-OUTDIR=$SCRATCH/2015-10-FmoUmbrella2/27-debug
+OUTDIR=$SCRATCH/2015-10-FmoUmbrella2/29-debug
 UMBRELLA=$HOME/Code/umbrellamacs2/gap-umbrella.sh
 STARTDIR=$SCRATCH/2015-07-FmoEd/eq4-md_long/starts
 MAX_REPEAT=100
@@ -56,7 +56,7 @@ if [ -z ${PBS_JOBID+x} ]; then
     SCRIPT_PATH=${OUTDIR}/${SRCNAME}_${chromo}_${JOBID}.sh
     echo "$JOBID"
     echo "Saving original submit script to $SCRIPT_PATH"
-    cp ${SRCNAME}.sh $SCRIPT_PATH
+    cp $SRCDIR/${SRCNAME}.sh $SCRIPT_PATH
     exit
 fi
 
@@ -115,6 +115,19 @@ cd $JOBDIR
 RESTART=false
 if [ "$PBS_MAGIC_REPEAT_NR" -gt 1 ]; then
     RESTART=true
+    if [ -d output ]; then
+        if [ ! -e true_output ]; then
+            mkdir true_output
+        fi
+        for f in `ls output/*.out`; do
+            fname=$(basename $f)
+            mv $f true_output/${fname%%.out}_$(( PBS_MAGIC_REPEAT_NR - 1 )).out
+        done
+        for f in `ls output/*.err`; do
+            fname=$(basename $f)
+            mv $f true_output/${fname%%.err}_$(( PBS_MAGIC_REPEAT_NR - 1 )).err
+        done
+    fi
 fi
 # start_pos
 while : ; do
