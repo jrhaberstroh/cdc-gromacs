@@ -1,4 +1,8 @@
 #!/bin/bash
+# gapumbrella.sh
+# Main execution script for umbrellamacs2 after compilation and installation.
+#
+# For information on execution and usage, run with -h option.
 
 set -o nounset
 set -o errexit

@@ -11,7 +11,7 @@ set -o errexit
 OUTDIR=$SCRATCH/2015-10-FmoUmbrella2/29-debug
 UMBRELLA=$HOME/Code/umbrellamacs2/gap-umbrella.sh
 STARTDIR=$SCRATCH/2015-07-FmoEd/eq4-md_long/starts
-MAX_REPEAT=5
+MAX_REPEAT=100
 njobs=${njobs-24}
 name=bias
 
@@ -25,7 +25,7 @@ if [ -z $SRCDIR ]; then
 fi
 SRCNAME=${SRCNAME?No SRCNAME set, this should be automatic!}
 # Must stay set for configuration to be relative to submit folder???
-cd $OUTDIR
+cd $SRCDIR
 ################################################################################
 #  Perform initial submission
 ################################################################################
@@ -51,7 +51,7 @@ if [ -z ${PBS_JOBID+x} ]; then
             -N ${QUEUE}_${name}_${chromo} \
             -o $OUTDIR \
             -j oe \
-            ${SRCDIR}/${SRCNAME}.sh)
+            ${SRCNAME}.sh)
     JOBID=${JOBID%%.*}
     SCRIPT_PATH=${OUTDIR}/${SRCNAME}_${chromo}_${JOBID}.sh
     echo "$JOBID"
