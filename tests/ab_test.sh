@@ -15,8 +15,14 @@ S_CDC=$OUT/site-cdc.txt
 S_MD=$OUT/site-MD.txt
 S_NOISE=$OUT/site-noise.txt
 NOISE=${NOISE-false}
+PROTO=${PROTO-false}
 PYEXTRA=${PYEXTRA-}
 FAST=${FAST-false}
+OUTDIR=${OUTDIR-}
+
+if [ "$PROTO" == "true" ]; then
+    PYEXTRA="$PYEXTRA -proto"
+fi
 
 compare () {
 # Comparison
@@ -33,7 +39,7 @@ fi
 awk "(NR - $num) % 7 == 0" $ALL   > $S_CDC
 < $S_CDC head -n 1 | tail -n 1 | while read l; do
     echo "$l" | cut -d' ' -f1- | wc -w
-    echo "$l" | cut -d' ' -f1-
+    # echo "$l" | cut -d' ' -f1-
     echo "$l" | cut -d' ' -f1- >> $COMP
 done
 
@@ -42,20 +48,31 @@ if [ "$NOISE" == true ]; then
     awk "(NR - $num) % 7 == 0" $NALL  > $S_NOISE
     < $S_NOISE head -n 1 | tail -n 1 | while read l; do
         echo "$l" | cut -d' ' -f1- | wc -w
-        echo "$l" | cut -d' ' -f1-
+        # echo "$l" | cut -d' ' -f1-
         echo "$l" | cut -d' ' -f1- >> $COMP
     done
 else
     # cat site-cdc.txt | head -n 2 | tail -n 1
     < $S_MD head -n 2 | tail -n 1 | while read l; do
         echo "$l" | cut -d',' -f2- | wc -w
-        echo "$l" | cut -d',' -f2-
+        # echo "$l" | cut -d',' -f2-
         echo "$l" | cut -d',' -f2- >> $COMP
     done
 fi
 
 cd $SRCDIR
-python scplot.py
+name_append=""
+if [ "$NOISE" == true ]; then
+    name_append="${name_append}N"
+fi
+if [ "$PROTO" == true ]; then
+    name_append="${name_append}P"
+fi
+if [ ! -z $OUTDIR ]; then
+    python scplot.py -out $OUTDIR/s${RESID}${name_append}.png -final 350
+else
+    python scplot.py -final 350
+fi
 }
 
 if [ "$FAST" == "true" ]; then

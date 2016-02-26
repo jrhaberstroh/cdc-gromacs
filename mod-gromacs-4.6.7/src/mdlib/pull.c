@@ -39,6 +39,7 @@
 #include <config.h>
 #endif
 
+int env_atm = 4025;
 
 #include <math.h>
 #include <stdio.h>
@@ -68,8 +69,8 @@
 // Computed as Qb0 - Qb1
 static double bcl_cdc_charges[BCL_N_ATOMS] = {0.017,0.027,0.021,0.000,0.053,0.000,0.030,0.000,0.028,-0.020,-0.031,-0.009,0.000,-0.003,0.000,-0.004,0.000,0.000,0.000,-0.004,0.000,0.000,0.001,0.000,0.000,-0.003,0.001,0.001,0.014,-0.023,-0.070,0.027,0.027,0.001,0.000,0.000,0.000,0.023,0.013,0.000,0.000,0.000,0.000,0.039,-0.041,-0.060,-0.005,0.000,-0.003,0.000,-0.003,0.000,0.000,0.000,-0.004,0.000,0.000,-0.001,0.000,0.000,0.000,0.012,-0.053,-0.047,0.018,-0.004,-0.002,0.000,0.000,0.000,0.027,0.009,-0.002,0.000,-0.002,0.002,0.003,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000};
 
-
 #define PROTEIN_N_ATOMS 5403
+
 static int BCL4_resnr[PROTEIN_N_ATOMS] = 
 {8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,
 9,9,9,9,9,9,9,9,9,9,9,9,10,10,10,
@@ -431,6 +432,7 @@ static int BCL4_resnr[PROTEIN_N_ATOMS] =
 355,355,355,355,355,355,355,355,355,355,355,355,355,355,355,
 355,355,356,356,356,356,356,356,356,356,356,356,357,357,357,
 357,357,357,357,357,357,357,357,357,357,357,357,357,357,357};
+
 
 static void pull_print_x_grp(FILE *out, gmx_bool bRef, ivec dim, t_pullgrp *pgrp)
 {
@@ -1517,10 +1519,10 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                                                / bi_ej_dist
                                                / bi_ej_dist
                                                * pgrp->k; //bias scale
-            if (bcl_count == 0 && env_ind == 0)
+            if (bcl_count == 0 && env_ind == env_atm)
             {
                 fprintf(stderr, "\nDEBUG BCL: %f %f %f (%f)\n", bi[0], bi[1], bi[2], -bcl_cdc_charges[bcl_count]);
-                fprintf(stderr, "\nDEBUG ENV: %f %f %f (%f)\n", ej[0], ej[1], ej[2], md->chargeA[env_ind]);
+                fprintf(stderr, "\nDEBUG ENV %d: %f %f %f (%f)\n", env_atm+1, ej[0], ej[1], ej[2], md->chargeA[env_ind]);
                 fprintf(stderr, "\nDEBUG DIST: %f\n", bi_ej_dist);
                 fprintf(stderr, "\nDEBUG KES: %f\n", K_es);
                 fprintf(stderr, "\nDEBUG INTQ: %f\n", md->chargeA[env_ind] * -bcl_cdc_charges[bcl_count]);
@@ -1540,8 +1542,8 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             }
         }
     }
-    int resnr;
     printf("CDC[cm-1], ");
+    int resnr;
     for (resnr = 0 ; resnr < site_count ; resnr++)
     {
         if (resnr != 0)
