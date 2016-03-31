@@ -63,5 +63,5 @@ if [ "$MODE" = "MAKE" ]; then
     cp mod-gromacs-4.6.7/src/mdlib/* $build_dir/src/mdlib
     cd $build_dir/build
     make -j 4 
-    make install-mdrun
+    make install
 fi

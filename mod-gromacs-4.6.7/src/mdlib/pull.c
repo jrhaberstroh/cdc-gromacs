@@ -1481,12 +1481,12 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
 
     int site_count = BCL4_resnr[PROTEIN_N_ATOMS-1] - BCL4_resnr[0] + 1;
     float * site_n_couple = (float *) calloc(site_count, sizeof(float));
+    float solvent_couple = 0.0;
+    float ion_couple = 0.0;
     for (i = 0 ; i < site_count ; i ++)
     {
         site_n_couple[i] = 0.0;
     }
-    fprintf(stderr, "\nDEBUG SITES: %d\n", site_count);
-    fprintf(stderr, "\nDEBUG MININD: %d\n", bcl_ind_min);
 
     real K_es = es_const / 4.0 * 3.0 / 3.14159265359;
 
@@ -1519,15 +1519,6 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                                                / bi_ej_dist
                                                / bi_ej_dist
                                                * pgrp->k; //bias scale
-            if (bcl_count == 0 && env_ind == env_atm)
-            {
-                fprintf(stderr, "\nDEBUG BCL: %f %f %f (%f)\n", bi[0], bi[1], bi[2], -bcl_cdc_charges[bcl_count]);
-                fprintf(stderr, "\nDEBUG ENV %d: %f %f %f (%f)\n", env_atm+1, ej[0], ej[1], ej[2], md->chargeA[env_ind]);
-                fprintf(stderr, "\nDEBUG DIST: %f\n", bi_ej_dist);
-                fprintf(stderr, "\nDEBUG KES: %f\n", K_es);
-                fprintf(stderr, "\nDEBUG INTQ: %f\n", md->chargeA[env_ind] * -bcl_cdc_charges[bcl_count]);
-                fprintf(stderr, "\nDEBUG INTR: %f\n", bi_ej_pot * 349.757);
-            }
             svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
             // printf("Force: %f\n", norm(bi_ej_force));
             // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,
@@ -1539,6 +1530,18 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             if (env_ind < PROTEIN_N_ATOMS)
             {
                 site_n_couple[ BCL4_resnr[env_ind] - BCL4_resnr[0] ] += bi_ej_pot;
+            }
+            else 
+            {
+                if ( abs(md->chargeA[env_ind]-1.0) < .0001 )
+                {
+                    ion_couple += bi_ej_pot;
+                }
+                else
+                {
+                    solvent_couple += bi_ej_pot;
+
+                }
             }
         }
     }
@@ -1552,6 +1555,8 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         }
         printf("%f", site_n_couple[resnr] * 349.757);
     }
+    printf(" %f", solvent_couple * 349.757);
+    printf(" %f",     ion_couple * 349.757);
     printf("\n");
     free(site_n_couple);
 
