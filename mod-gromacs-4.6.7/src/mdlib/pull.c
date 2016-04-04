@@ -1466,6 +1466,8 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         }
     }
 
+    int n_ions = 3;
+    int n_bcl_atoms = 140;
     dVdl = 0.0;
     V_cdc = 0.0;
 
@@ -1481,6 +1483,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
 
     int site_count = BCL4_resnr[PROTEIN_N_ATOMS-1] - BCL4_resnr[0] + 1;
     float * site_n_couple = (float *) calloc(site_count, sizeof(float));
+    float bcl_couple = 0.0;
     float solvent_couple = 0.0;
     float ion_couple = 0.0;
     for (i = 0 ; i < site_count ; i ++)
@@ -1531,17 +1534,17 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             {
                 site_n_couple[ BCL4_resnr[env_ind] - BCL4_resnr[0] ] += bi_ej_pot;
             }
-            else 
+            else if (env_ind < (PROTEIN_N_ATOMS + 7 * n_bcl_atoms) )
             {
-                if ( abs(md->chargeA[env_ind]-1.0) < .0001 )
-                {
-                    ion_couple += bi_ej_pot;
-                }
-                else
-                {
-                    solvent_couple += bi_ej_pot;
-
-                }
+                bcl_couple += bi_ej_pot;
+            }
+            else if (env_ind < (md->nr - n_ions))
+            {
+                solvent_couple += bi_ej_pot;
+            }
+            else
+            {
+                ion_couple += bi_ej_pot;
             }
         }
     }
@@ -1555,6 +1558,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         }
         printf("%f", site_n_couple[resnr] * 349.757);
     }
+    printf(" %f",     bcl_couple * 349.757);
     printf(" %f", solvent_couple * 349.757);
     printf(" %f",     ion_couple * 349.757);
     printf("\n");

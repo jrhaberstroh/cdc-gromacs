@@ -34,7 +34,12 @@ fourierspacing	= 0.24		; grid spacing for FFT
 gen_vel		= yes		; assign velocities from Maxwell distribution
 
 ; Temperature coupling is on
-tcoupl		= no	     ; modified Berendsen thermostat
+tcoupl          = v-rescale
+tc-grps         = Protein    non-protein
+tau-t           = 0.1  0.1
+ref-t           = 300  300
+ld-seed			= 90210
+
 
 ; Pressure coupling is off
 pcoupl		= no 		; no pressure coupling in NVT
