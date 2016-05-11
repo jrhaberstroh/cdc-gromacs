@@ -1548,7 +1548,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             }
         }
     }
-    printf("CDC[cm-1], ");
+    printf("CDC[cm-1], %.3f ", t);
     int resnr;
     for (resnr = 0 ; resnr < site_count ; resnr++)
     {
