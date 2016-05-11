@@ -1474,7 +1474,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     t_pullgrp *pgrp;
     real pull_force;
     int bcl_count, env_ind;
-    real es_const = 138.935485;
+    real es_const = 138.935485; 
     rvec xrefr = {0, 0, 0};
     
     pgrp = &pull->grp[1];
@@ -1491,8 +1491,9 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         site_n_couple[i] = 0.0;
     }
 
-    real K_es = es_const / 4.0 * 3.0 / 3.14159265359;
-
+    // Checks out as about 33.2 kCal/mol * nm / e^2
+    // given value of es_const ~= 139
+    real K_es = es_const / 4.0 * 3.0 / 3.14159265359; 
     for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
     {
         int bcl_ind = pgrp->ind[bcl_count];
