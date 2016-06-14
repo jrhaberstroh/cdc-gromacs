@@ -63,6 +63,7 @@ int env_atm = 4025;
 #include "mdrun.h"
 #include "gmx_ga2la.h"
 #include "copyrite.h"
+#include "physics.h"
 
 #define BCL_N_ATOMS 140
 
@@ -1474,7 +1475,6 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     t_pullgrp *pgrp;
     real pull_force;
     int bcl_count, env_ind;
-    real es_const = 138.935485;
     rvec xrefr = {0, 0, 0};
     
     pgrp = &pull->grp[1];
@@ -1490,8 +1490,6 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     {
         site_n_couple[i] = 0.0;
     }
-
-    real K_es = es_const / 4.0 * 3.0 / 3.14159265359;
 
     for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
     {
@@ -1514,8 +1512,8 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             real bi_ej_dist = norm(bi_ej_dx);
             real bi_ej_couple   = md->chargeA[env_ind] 
                                   * -bcl_cdc_charges[bcl_count]
-                                  * K_es       // electrostatics
-                                  * .3333      // screening
+                                  * ONE_4PI_EPS0       // electrostatics
+                                  * .3333              // screening
             ;
             real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
             real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
@@ -1549,6 +1547,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         }
     }
     printf("CDC[cm-1], ");
+    double kJ2cm1 = 83.593;
     int resnr;
     for (resnr = 0 ; resnr < site_count ; resnr++)
     {
@@ -1556,11 +1555,11 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         {
             printf(" ");
         }
-        printf("%f", site_n_couple[resnr] * 349.757);
+        printf("%f", site_n_couple[resnr] * kJ2cm1);
     }
-    printf(" %f",     bcl_couple * 349.757);
-    printf(" %f", solvent_couple * 349.757);
-    printf(" %f",     ion_couple * 349.757);
+    printf(" %f",     bcl_couple * kJ2cm1);
+    printf(" %f", solvent_couple * kJ2cm1);
+    printf(" %f",     ion_couple * kJ2cm1);
     printf("\n");
     free(site_n_couple);
 
