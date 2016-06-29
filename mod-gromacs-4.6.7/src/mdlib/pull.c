@@ -39,11 +39,10 @@
 #include <config.h>
 #endif
 
-int env_atm = 4025;
-
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "futil.h"
 #include "index.h"
 #include "statutil.h"
@@ -64,9 +63,10 @@ int env_atm = 4025;
 #include "gmx_ga2la.h"
 #include "copyrite.h"
 #include "physics.h"
+#include "domdec_network.h"
 
 #define BCL_N_ATOMS 140
-
+// GOTO header
 // Computed as Qb0 - Qb1
 static double bcl_cdc_charges[BCL_N_ATOMS] = {0.017,0.027,0.021,0.000,0.053,0.000,0.030,0.000,0.028,-0.020,-0.031,-0.009,0.000,-0.003,0.000,-0.004,0.000,0.000,0.000,-0.004,0.000,0.000,0.001,0.000,0.000,-0.003,0.001,0.001,0.014,-0.023,-0.070,0.027,0.027,0.001,0.000,0.000,0.000,0.023,0.013,0.000,0.000,0.000,0.000,0.039,-0.041,-0.060,-0.005,0.000,-0.003,0.000,-0.003,0.000,0.000,0.000,-0.004,0.000,0.000,-0.001,0.000,0.000,0.000,0.012,-0.053,-0.047,0.018,-0.004,-0.002,0.000,0.000,0.000,0.027,0.009,-0.002,0.000,-0.002,0.002,0.003,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000};
 
@@ -1442,130 +1442,385 @@ static void do_pull_pot(int ePull,
 //     double      f_scal;     /* Scalar force for directional pulling */
 //     dvec        f;          /* force due to the pulling/constraining */
 // } t_pullgrp;
+// GOTO pull
 
 real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     t_commrec *cr, double t, real lambda,
                     rvec *x, rvec *f, tensor vir, real *dvdlambda)
 {
-
-
+    gmx_bool my_interactive_debug=TRUE;
     real V_cdc, dVdl;
-
-    // pull_calc_coms(cr, pull, md, pbc, t, x, NULL);
-
-    // do_pull_pot(ePull, pull, pbc, t, lambda,
-    //             &V, pull->bVirial && MASTER(cr) ? vir : NULL, &dVdl);
-
-    // /* Distribute forces over pulled groups */
-    // apply_forces(pull, md, DOMAINDECOMP(cr) ? cr->dd->ga2la : NULL, f);
-    
-    int i = 0;
-    for (i = 0 ; i < PROTEIN_N_ATOMS - 1 ; i++)
-    {
-        if (BCL4_resnr[i+1] < BCL4_resnr[i]){
-            fprintf(stderr, "\nERROR!!!!!! site %d has a non-ascending resnr", i);
-        }
-    }
-
-    int n_ions = 3;
-    int n_bcl_atoms = 140;
-    dVdl = 0.0;
-    V_cdc = 0.0;
-
-    t_pullgrp *pgrp;
-    real pull_force;
-    int bcl_count, env_ind;
-    rvec xrefr = {0, 0, 0};
-    
-    pgrp = &pull->grp[1];
-    pull_force = pgrp->k;
-    int bcl_ind_min = pgrp->ind[0];
-
-    int site_count = BCL4_resnr[PROTEIN_N_ATOMS-1] - BCL4_resnr[0] + 1;
-    float * site_n_couple = (float *) calloc(site_count, sizeof(float));
-    float bcl_couple = 0.0;
-    float solvent_couple = 0.0;
-    float ion_couple = 0.0;
-    for (i = 0 ; i < site_count ; i ++)
-    {
-        site_n_couple[i] = 0.0;
-    }
-
-    for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
-    {
-        int bcl_ind = pgrp->ind[bcl_count];
-        for (env_ind = 0 ; env_ind < md->nr ; env_ind++)
-        {
-            if (env_ind == bcl_ind_min)
-            {
-                env_ind += BCL_N_ATOMS;
-            }
-            rvec bi;
-            rvec ej;
-            rvec bi_ej_force;
-            rvec bi_ej_dx;
-            
-            copy_rvec(x[bcl_ind], bi);
-            copy_rvec(x[env_ind], ej);
-            
-            pbc_dx(pbc, bi, ej, bi_ej_dx);
-            real bi_ej_dist = norm(bi_ej_dx);
-            real bi_ej_couple   = md->chargeA[env_ind] 
-                                  * -bcl_cdc_charges[bcl_count]
-                                  * ONE_4PI_EPS0       // electrostatics
-                                  * .3333              // screening
-            ;
-            real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
-            real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
-                                               / bi_ej_dist
-                                               / bi_ej_dist
-                                               * pgrp->k; //bias scale
-            svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
-            // printf("Force: %f\n", norm(bi_ej_force));
-            // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,
-            //         bi_ej_dist);
-            rvec_inc(f[bcl_ind], bi_ej_force);
-            rvec_dec(f[env_ind], bi_ej_force);
-            V_cdc += bi_ej_pot;
-            
-            if (env_ind < PROTEIN_N_ATOMS)
-            {
-                site_n_couple[ BCL4_resnr[env_ind] - BCL4_resnr[0] ] += bi_ej_pot;
-            }
-            else if (env_ind < (PROTEIN_N_ATOMS + 7 * n_bcl_atoms) )
-            {
-                bcl_couple += bi_ej_pot;
-            }
-            else if (env_ind < (md->nr - n_ions))
-            {
-                solvent_couple += bi_ej_pot;
-            }
-            else
-            {
-                ion_couple += bi_ej_pot;
-            }
-        }
-    }
+    // Create a t_pullgrp variable and only consider the first pullgroup
+    t_pullgrp *pgrp; pgrp = &pull->grp[1];
     double kJ2cm1 = 83.593;
-    printf("CDC[cm-1], %.3f ", t);
-    int resnr;
-    for (resnr = 0 ; resnr < site_count ; resnr++)
+    // number of BCL residues (aka "sites") in BCL4_resnr array
+    int site_count = BCL4_resnr[PROTEIN_N_ATOMS-1] - BCL4_resnr[0] + 1;
+
+    int bcl_ind_min = pgrp->ind[0];
+    int bcl_ind_max = bcl_ind_min + BCL_N_ATOMS - 1;
+    //x pull_calc_coms(cr, pull, md, pbc, t, x, NULL);
+    int     *master_nbcl = NULL;
+    rvec    *global_bcl_x  = NULL;
+    real    *global_bcl_q  = NULL;
+    atom_id *global_bcl_i  = NULL;
+    rvec     *local_bcl_f  = NULL;
+    float *local_site_n_couple = NULL;
+    float local_bcl_couple = 0.0;
+    float local_solvent_couple = 0.0;
+    float local_ion_couple = 0.0;
+
+    snew(global_bcl_x, BCL_N_ATOMS);
+    snew(global_bcl_q, BCL_N_ATOMS);
+    snew(global_bcl_i, BCL_N_ATOMS);
+    snew( local_bcl_f, BCL_N_ATOMS);
+    snew(local_site_n_couple, site_count);
+
+    // Communicate the positions of the BCL atoms to all dd nodes
+    if (t == 0.0) { //x "if" statement for cleaner debugging
+    if (cr && DOMAINDECOMP(cr))
     {
-        if (resnr != 0)
+        gmx_domdec_t *dd = cr->dd;
+        // Counter to use while iterating through nodes
+        int node_ctr;
+
+        int *master_rvec_bytes = NULL;
+        int *master_rvec_disps = NULL;
+        int *master_real_bytes = NULL;
+        int *master_real_disps = NULL;
+        int *master_atom_id_bytes = NULL;
+        int *master_atom_id_disps = NULL;
+        rvec    *mydomain_bcl_x = NULL;
+        real    *mydomain_bcl_q = NULL;
+        atom_id *mydomain_bcl_i = NULL;
+        if (DDMASTER(dd))
         {
-            printf(" ");
+            printf("t=%.4f\n", t);
+            printf("I'm da boss with %d nodes\n", dd->nnodes);
+            printf("Boss calling calloc...\n");
+            // GOTONOW
+            snew(master_nbcl, dd->nnodes);
+            snew(master_rvec_bytes,    dd->nnodes);
+            snew(master_rvec_disps,    dd->nnodes);
+            snew(master_real_bytes,    dd->nnodes);
+            snew(master_real_disps,    dd->nnodes);
+            snew(master_atom_id_bytes, dd->nnodes);
+            snew(master_atom_id_disps, dd->nnodes);
+            printf("\tCalloc'd!\n");
         }
-        printf("%f", site_n_couple[resnr] * kJ2cm1);
+        else
+        {
+            printf("\t\tREPORTING FOR DUTY!!\n");
+        }
+
+        //1 Gather the number of BCL atoms in each domain to prepare for a
+        //  gatherv operation of the positions
+        int total_nmatch=0;
+        int bcl_ind_iter;
+        for (bcl_ind_iter=bcl_ind_min ; bcl_ind_iter <= bcl_ind_max ; bcl_ind_iter++)
+        {
+            int cell_id = dd->ga2la->laa[bcl_ind_iter].cell;
+            if (cell_id == 0)
+            {
+                total_nmatch++;
+            }
+        }
+        dd_gather(dd, sizeof(int), &total_nmatch, master_nbcl); 
+        //1TEST -- assert that all BCL atoms are found
+        //
+        //? This should be an exception handling instance...
+        if (DDMASTER(dd))
+        {
+            int sum_total_nmatch = 0;
+            for (node_ctr = 0; node_ctr < dd->nnodes ; node_ctr++)
+            {
+                sum_total_nmatch += master_nbcl[node_ctr];
+            }
+            assert(sum_total_nmatch == BCL_N_ATOMS);
+        }
+
+        //2 GatherV mydomain_bcl_x to global_bcl_x
+        //2a if we found matches in 1, allocate and populate "mydomain" variables
+        if (total_nmatch > 0)
+        {
+            snew(mydomain_bcl_x, total_nmatch);
+            snew(mydomain_bcl_q, total_nmatch);
+            snew(mydomain_bcl_i, total_nmatch);
+            int nmatch=0;
+            for (bcl_ind_iter=bcl_ind_min ; bcl_ind_iter <= bcl_ind_max ; bcl_ind_iter++)
+            {
+                int cell_id = dd->ga2la->laa[bcl_ind_iter].cell;
+                int local_index = dd->ga2la->laa[bcl_ind_iter].la;
+                if (cell_id == 0)
+                {
+                    // fill mydomain_bcl_i
+                    mydomain_bcl_i[nmatch] = bcl_ind_iter;
+                    // fill mydomain_bcl_x
+                    copy_rvec(x[local_index], mydomain_bcl_x[nmatch]);
+                    // fill mydomain_bcl_q
+                    int this_bcl_index = bcl_ind_iter - bcl_ind_min;
+                    mydomain_bcl_q[nmatch] = bcl_cdc_charges[this_bcl_index];
+                    // increment the domain-specific counter
+                    nmatch++;
+                }
+            }
+        }
+        //2b create the global "type_bytes" and "type_disps" arrays describing 
+        //   the bytes to transfer for gatherv
+        if (DDMASTER(dd))
+        {
+            for (node_ctr = 0; node_ctr < dd->nnodes ; node_ctr++)
+            {
+                int i = node_ctr;
+                master_rvec_bytes[i]    = master_nbcl[i] * sizeof(rvec);
+                master_rvec_disps[i]    = (i > 0) ? 
+                                       (master_rvec_disps[i-1] +
+                                        master_nbcl[i-1] * sizeof(rvec)) : 0;
+                master_real_bytes[i]    = master_nbcl[i] * sizeof(real);
+                master_real_disps[i]    = (i > 0) ? 
+                                       (master_real_disps[i-1] +
+                                        master_nbcl[i-1] * sizeof(real)) : 0;
+                master_atom_id_bytes[i] = master_nbcl[i] * sizeof(atom_id);
+                master_atom_id_disps[i] = (i > 0) ? 
+                                    (master_atom_id_disps[i-1] +
+                                     master_nbcl[i-1] * sizeof(atom_id)) : 0;
+            }
+        }
+        dd_gatherv(dd, total_nmatch*sizeof(atom_id), mydomain_bcl_i,
+                master_atom_id_bytes, master_atom_id_disps, global_bcl_i);
+        dd_gatherv(dd, total_nmatch*sizeof(rvec),    mydomain_bcl_x,
+                master_rvec_bytes,    master_rvec_disps,    global_bcl_x);
+        dd_gatherv(dd, total_nmatch*sizeof(real),    mydomain_bcl_q,
+                master_real_bytes,    master_real_disps,    global_bcl_q);
+        //2-TEST Check the gatherv'd arrays for sensibility
+        if (DDMASTER(dd) && my_interactive_debug)
+        {
+            for ( node_ctr = 0; node_ctr < dd->nnodes ; node_ctr++ )
+            {
+                printf("\t%d has %d atoms\n", node_ctr, master_nbcl[node_ctr]);
+            }
+            atom_id master_bcl_ind;
+            for ( master_bcl_ind = 0; master_bcl_ind < BCL_N_ATOMS ; master_bcl_ind+=10 )
+            {
+                printf("\tmaster %d: global %d [%.3f, %.3f, %.3f], q = %.4fe\n", 
+                        master_bcl_ind, global_bcl_i[master_bcl_ind],
+                        global_bcl_x[master_bcl_ind][0],
+                        global_bcl_x[master_bcl_ind][1],
+                        global_bcl_x[master_bcl_ind][2],
+                        global_bcl_q[master_bcl_ind]);
+            }
+        }
+
+        //3 Broadcast global_bcl_[xqi] to all local environments
+        gmx_bcast(sizeof(atom_id)*BCL_N_ATOMS, global_bcl_i, cr);
+        gmx_bcast(sizeof(rvec   )*BCL_N_ATOMS, global_bcl_x, cr);
+        gmx_bcast(sizeof(real   )*BCL_N_ATOMS, global_bcl_q, cr);
+
+        //4 Perform the cdc calculation locally
+        //TODO allocate site_n_couple
+        //? int bcl_count, env_ind;
+        //? for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++)
+        //? {
+        //?     int bcl_ind = pgrp->ind[bcl_count];
+        //?     for (env_ind = md->start ; env_ind < md->start+md->homenr ; env_ind++)
+        //?     {
+        //?         if (env_ind == bcl_ind_min)
+        //?         {
+        //?             env_ind += BCL_N_ATOMS;
+        //?         }
+        //?         // Create references for easier name convention
+        //?         rvec &bi = &global_bcl_x[bcl_ind];
+        //?         rvec &ej = &           x[env_ind];
+
+        //?         rvec bi_ej_force;
+        //?         rvec bi_ej_dx;
+        //?         
+        //?         pbc_dx(pbc, bi, ej, bi_ej_dx);
+        //?         real bi_ej_dist = norm(bi_ej_dx);
+        //?         real bi_ej_couple   = md->chargeA[env_ind] 
+        //?                               * -global_bcl_q[bcl_count]
+        //?                               * ONE_4PI_EPS0       // electrostatics
+        //?                               * .3333              // screening
+        //?         ;
+        //?         real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
+        //?         real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
+        //?                                            / bi_ej_dist
+        //?                                            / bi_ej_dist
+        //?                                            * pgrp->k; //bias scale
+        //?         svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
+        //?         // printf("Force: %f\n", norm(bi_ej_force));
+        //?         // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,
+        //?         //         bi_ej_dist);
+        //?         rvec_inc(global_bcl_f[bcl_ind], bi_ej_force);
+        //?         rvec_dec(           f[env_ind], bi_ej_force);
+        //?         V_cdc += bi_ej_pot;
+        //?         
+        //?         if (env_ind < PROTEIN_N_ATOMS)
+        //?         {
+        //?             site_n_couple[ BCL4_resnr[env_ind] - BCL4_resnr[0] ] += bi_ej_pot;
+        //?         }
+        //?         else if (env_ind < (PROTEIN_N_ATOMS + 7 * n_bcl_atoms) )
+        //?         {
+        //?             bcl_couple += bi_ej_pot;
+        //?         }
+        //?         else if (env_ind < (md->nr - n_ions))
+        //?         {
+        //?             solvent_couple += bi_ej_pot;
+        //?         }
+        //?         else
+        //?         {
+        //?             ion_couple += bi_ej_pot;
+        //?         }
+        //?     }
+        //? }
+
+        
+        //TODO Communicate the total gap
+        
+        //TODO Communicate the slope
+         
+        //TODO Perform the forces locally
+
+        //TODO Apply the environment forces locally
+
+        //TODO MapReduce Sum the BCL forces globally
+ 
+        //TODO Scatter global_bcl_f to the domain owners
+
+        //TODO Clean up after all is done
+        // Free the allocated global arrays and summarize the results
+        if (DDMASTER(dd))
+        {
+            printf("Boss calling free...\n");
+            sfree(master_nbcl);
+            sfree(master_rvec_bytes);
+            sfree(master_rvec_disps);
+            sfree(master_real_bytes);
+            sfree(master_real_disps);
+            sfree(master_atom_id_bytes);
+            sfree(master_atom_id_disps);
+            printf("\tFree'd!\n");
+        }
+        if (total_nmatch > 0)
+        {
+            sfree(mydomain_bcl_x);
+            sfree(mydomain_bcl_q);
+            sfree(mydomain_bcl_i);
+        }
     }
-    printf(" %f",     bcl_couple * kJ2cm1);
-    printf(" %f", solvent_couple * kJ2cm1);
-    printf(" %f",     ion_couple * kJ2cm1);
-    printf("\n");
-    free(site_n_couple);
+    }//x GOTO This is the end of (if t==0.0) 
+
+    sfree(global_bcl_x);
+    sfree(global_bcl_q);
+    sfree(global_bcl_i);
+    sfree( local_bcl_f);
+    sfree(local_site_n_couple);
 
     *dvdlambda += dVdl;
-    // printf("\nCDC value: %f cm-1\n", V_cdc * 349.757);
     return (MASTER(cr) ? V_cdc : 0.0);
+
+    //// // If we are in serial, do things the serial way!
+    //// else
+    //// {
+    ////     
+    ////     int i = 0;
+    ////     for (i = 0 ; i < PROTEIN_N_ATOMS - 1 ; i++)
+    ////     {
+    ////         if (BCL4_resnr[i+1] < BCL4_resnr[i]){
+    ////             fprintf(stderr, "\nERROR!!!!!! site %d has a non-ascending resnr", i);
+    ////         }
+    ////     }
+    //// 
+    ////     int n_ions = 3;
+    ////     int n_bcl_atoms = 140;
+    ////     dVdl = 0.0;
+    ////     V_cdc = 0.0;
+    //// 
+    ////     t_pullgrp *pgrp;
+    ////     real pull_force;
+    ////     int bcl_count, env_ind;
+    ////     rvec xrefr = {0, 0, 0};
+    ////     
+    ////     pgrp = &pull->grp[1];
+    ////     pull_force = pgrp->k;
+    ////     int bcl_ind_min = pgrp->ind[0];
+    //// 
+    ////     for (i = 0 ; i < site_count ; i ++)
+    ////     {
+    ////         site_n_couple[i] = 0.0;
+    ////     }
+    //// 
+    ////     for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
+    ////     {
+    ////         int bcl_ind = pgrp->ind[bcl_count];
+    ////         for (env_ind = 0 ; env_ind < md->nr ; env_ind++)
+    ////         {
+    ////             if (env_ind == bcl_ind_min)
+    ////             {
+    ////                 env_ind += BCL_N_ATOMS;
+    ////             }
+    ////             rvec bi;
+    ////             rvec ej;
+    ////             rvec bi_ej_force;
+    ////             rvec bi_ej_dx;
+    ////             
+    ////             copy_rvec(x[bcl_ind], bi);
+    ////             copy_rvec(x[env_ind], ej);
+    ////             
+    ////             pbc_dx(pbc, bi, ej, bi_ej_dx);
+    ////             real bi_ej_dist = norm(bi_ej_dx);
+    ////             real bi_ej_couple   = md->chargeA[env_ind] 
+    ////                                   * -bcl_cdc_charges[bcl_count]
+    ////                                   * ONE_4PI_EPS0       // electrostatics
+    ////                                   * .3333              // screening
+    ////             ;
+    ////             real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
+    ////             real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
+    ////                                                / bi_ej_dist
+    ////                                                / bi_ej_dist
+    ////                                                * pgrp->k; //bias scale
+    ////             svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
+    ////             // printf("Force: %f\n", norm(bi_ej_force));
+    ////             // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,
+    ////             //         bi_ej_dist);
+    ////             rvec_inc(f[bcl_ind], bi_ej_force);
+    ////             rvec_dec(f[env_ind], bi_ej_force);
+    ////             V_cdc += bi_ej_pot;
+    ////             
+    ////             if (env_ind < PROTEIN_N_ATOMS)
+    ////             {
+    ////                 site_n_couple[ BCL4_resnr[env_ind] - BCL4_resnr[0] ] += bi_ej_pot;
+    ////             }
+    ////             else if (env_ind < (PROTEIN_N_ATOMS + 7 * n_bcl_atoms) )
+    ////             {
+    ////                 bcl_couple += bi_ej_pot;
+    ////             }
+    ////             else if (env_ind < (md->nr - n_ions))
+    ////             {
+    ////                 solvent_couple += bi_ej_pot;
+    ////             }
+    ////             else
+    ////             {
+    ////                 ion_couple += bi_ej_pot;
+    ////             }
+    ////         }
+    ////     }
+    ////     printf("CDC[GromacsUnits], %.3f ", t);
+    ////     int resnr;
+    ////     for (resnr = 0 ; resnr < site_count ; resnr++)
+    ////     {
+    ////         if (resnr != 0)
+    ////         {
+    ////             printf(" ");
+    ////         }
+    ////         printf("%f", site_n_couple[resnr]);
+    ////     }
+    ////     printf(" %f",     bcl_couple);
+    ////     printf(" %f", solvent_couple);
+    ////     printf(" %f",     ion_couple);
+    ////     printf("\n");
+    ////     free(site_n_couple);
+    //// }
+
 }
 
 void pull_constraint(t_pull *pull, t_mdatoms *md, t_pbc *pbc,
