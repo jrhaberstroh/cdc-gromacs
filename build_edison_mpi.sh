@@ -24,21 +24,22 @@ fi
 if [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "ALL" ]; then
     echo "INITIALIZING..."
     wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-4.6.7.tar.gz
-fi
-
-# BUILD
-if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
     tar -xvf gromacs-4.6.7.tar.gz
     mv gromacs-4.6.7 $build_dir
     cd $build_dir
     if [ ! -e build_mpi ]; then
         mkdir build_mpi
     fi
+fi
+
+# BUILD
+if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
     echo "BUILDING..."
     cd $build_dir
     module swap PrgEnv-intel PrgEnv-gnu
     module load cmake
     sed -i 's/\^#pragma omp .*\$//' src/*/*.c
+    cd build_mpi
     CC=cc CPP=cpp CXXCPP=cpp CXX=CC \
          CMAKE_INCLUDE_PATH=/opt/cray/fftw/3.3.4.6/sandybridge/include \
          CMAKE_LIBRARY_PATH=/opt/cray/fftw/3.3.4.6/sandybridge/lib     \
@@ -47,7 +48,7 @@ if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
                  -DGMX_OPENMP=OFF                                      \
                  -DGMX_DOUBLE=OFF                                      \
                  -DCMAKE_SKIP_RPATH=YES                                \
-                 -DCMAKE_INSTALL_PREFIX=$HOME/local/gromacs_umb_sE-4.6.7 \
+                 -DCMAKE_INSTALL_PREFIX=$HOME/local/gromacs_umb_mpi_E-4.6.7 \
                  -DBUILD_SHARED_LIBS=OFF                               \
                  -DGMX_PREFER_STATIC_LIBS=ON                           \
                  -DGMX_BINARY_SUFFIX=_umb_mpi_ed                       \
