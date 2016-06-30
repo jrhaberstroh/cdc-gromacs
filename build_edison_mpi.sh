@@ -31,37 +31,36 @@ if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
     tar -xvf gromacs-4.6.7.tar.gz
     mv gromacs-4.6.7 $build_dir
     cd $build_dir
-    if [ ! -e build ]; then
-        mkdir build
+    if [ ! -e build_mpi ]; then
+        mkdir build_mpi
     fi
     echo "BUILDING..."
     cd $build_dir
-    module load PrgEnv-intel
+    module swap PrgEnv-intel PrgEnv-gnu
     module load cmake
     sed -i 's/\^#pragma omp .*\$//' src/*/*.c
-    cd build
-    cmake .. -DGMX_MPI=off                                                  \
-            -DGMX_GPU=off                                                   \
-            -DGMX_OPENMM=off                                                \
-	        -DGMX_OPENMP=off                                                \
-            -DGMX_THREAD_MPI=off                                            \
-            -DGMX_X11=off                                                   \
-            -DCMAKE_CXX_COMPILER=icpc                                       \
-            -DCMAKE_C_COMPILER=icc                                          \
-            -DGMX_PREFER_STATIC_LIBS=ON                                     \
-            -DGMX_BUILD_OWN_FFTW=ON                                         \
-            -DGMX_DEFAULT_SUFFIX=off                                        \
-            -DGMX_BINARY_SUFFIX="_umb_sE"                                   \
-            -DCMAKE_INSTALL_PREFIX=$HOME/local/gromacs_umb_sE-4.6.7          
+    CC=cc CPP=cpp CXXCPP=cpp CXX=CC \
+         CMAKE_INCLUDE_PATH=/opt/cray/fftw/3.3.4.6/sandybridge/include \
+         CMAKE_LIBRARY_PATH=/opt/cray/fftw/3.3.4.6/sandybridge/lib     \
+         CMAKE_PREFIX_PATH=/opt/cray/fftw/3.3.4.6/sandybridge/lib      \
+         cmake .. -DGMX_MPI=ON                                         \
+                 -DGMX_OPENMP=OFF                                      \
+                 -DGMX_DOUBLE=OFF                                      \
+                 -DCMAKE_SKIP_RPATH=YES                                \
+                 -DCMAKE_INSTALL_PREFIX=$HOME/local/gromacs_umb_sE-4.6.7 \
+                 -DBUILD_SHARED_LIBS=OFF                               \
+                 -DGMX_PREFER_STATIC_LIBS=ON                           \
+                 -DGMX_BINARY_SUFFIX=_umb_mpi_ed                       \
+                 -DGMX_DEFAULT_SUFFIX=OFF                              \
+                 -DGMX_LIBS_SUFFIX=_mpi_sp                             \
+                 -DGMX_BUILD_MDRUN_ONLY=ON
     MODE="MAKE"
-#             -DFFTWF_INCLUDE_DIR=$HOME/local/fftw-334-float/include          \
-#             -DFFTWF_LIBRARY=$HOME/local/fftw-334-float/lib/libfftw3f.a      \
 fi
 
 if [ "$MODE" = "MAKE" ]; then
     cd $SRCDIR
     cp mod-gromacs-4.6.7/src/mdlib/* $build_dir/src/mdlib
-    cd $build_dir/build
+    cd $build_dir/build_mpi
     make -j 4 
     make install
 fi
