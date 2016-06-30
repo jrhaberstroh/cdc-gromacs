@@ -1,0 +1,51 @@
+title		= Generic NVT equilibration 
+define		=          	; position restrain the protein
+; Run parameters
+integrator	= md		; leap-frog integrator
+nsteps		= 1000      ; 1 ns
+dt	        = 0.001		; 2 fs
+; Output control
+nstxout		= 1       	; save coordinates every 0.2 ps
+nstvout		= 1       	; save velocities every 0.2 ps
+nstxtcout	= 1       
+nstenergy	= 1       	; save energies every 0.2 ps
+nstlog		= 1      	; update log file every 0.2 ps
+
+; Bond parameters
+continuation	= no 		; first dynamics run
+constraint_algorithm = lincs	; holonomic constraints 
+constraints	= all-bonds	; all bonds (even heavy atom-H bonds) constrained
+lincs_iter	= 1		; accuracy of LINCS
+lincs_order	= 4		; also related to accuracy
+
+; Cutoffs and electrostatics
+pbc		    = xyz		; 3-D PBC
+nstlist		= 10
+ns_type		= grid  	; search neighboring grid cells
+rlist		= 1.2		; short-range neighborlist cutoff (in nm)
+rcoulomb	= 1.2		; short-range electrostatic cutoff (in nm)
+rvdw		= 1.2		; short-range van der Waals cutoff (in nm)
+DispCorr	= EnerPres	; account for cut-off vdW scheme
+coulombtype	= PME		; Particle Mesh Ewald for long-range electrostatics
+pme_order	= 4		; cubic interpolation
+fourierspacing	= 0.24		; grid spacing for FFT
+
+; Velocity generation
+gen_vel		= yes		; assign velocities from Maxwell distribution
+gen_seed    = 90210     ; use a seed to ensure identical behavior between runs
+
+; Temperature coupling is on
+tcoupl		= no	     ; modified Berendsen thermostat
+
+; Pressure coupling is off
+pcoupl		= no 		; no pressure coupling in NVT
+
+; Pulling for CDC
+pull                    = constant-force
+pull-nstxout            = 0
+pull-nstfout            = 0
+pull-geometry           = direction-periodic
+pull-dim                = Y Y Y
+pull-ngroups            = 1
+pull-group1 = BCL_BCL_373
+pull-k1 = 300.0
