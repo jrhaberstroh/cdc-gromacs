@@ -1500,15 +1500,16 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             {
                 env_ind += BCL_N_ATOMS;
             }
-            rvec bi;
-            rvec ej;
+            // Using pointers instead of copy
+            rvec *bi = &(x[bcl_ind]);
+            rvec *ej = &(x[env_ind]);
             rvec bi_ej_force;
             rvec bi_ej_dx;
+            //x Old, copy-based version
+            //x copy_rvec(x[bcl_ind], bi);
+            //x copy_rvec(x[env_ind], ej);
             
-            copy_rvec(x[bcl_ind], bi);
-            copy_rvec(x[env_ind], ej);
-            
-            pbc_dx(pbc, bi, ej, bi_ej_dx);
+            pbc_dx(pbc, *bi, *ej, bi_ej_dx);
             real bi_ej_dist = norm(bi_ej_dx);
             real bi_ej_couple   = md->chargeA[env_ind] 
                                   * -bcl_cdc_charges[bcl_count]
