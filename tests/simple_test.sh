@@ -48,5 +48,5 @@ GROMPP=grompp MDRUN=$MY_MDRUN                                                 \
     TOP=$base/FMO_conf/4BCL.top                                               \
     MDPIN=$base/mdp/test_10step.mdp                                           \
     RESTART=false                                                             \
-    $base/gap-umbrella.sh $base/FMO_conf/em/em.gro 1.0 368
+    $base/gap-umbrella.sh $base/FMO_conf/em/em.gro 10.0 368
 

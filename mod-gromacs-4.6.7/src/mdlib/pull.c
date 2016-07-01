@@ -1450,7 +1450,8 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     rvec *x, rvec *f, tensor vir, real *dvdlambda)
 {
     gmx_bool my_interactive_debug=FALSE;
-    real V_cdc, dVdl;
+    real V_cdc, V, dVdl;
+    real k, dkdl;
     // Create a t_pullgrp variable and only consider the first pullgroup
     t_pullgrp *pgrp; pgrp = &pull->grp[1];
     double kJ2cm1 = 83.593;
@@ -1469,12 +1470,15 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     float local_bcl_couple = 0.0;
     float local_solvent_couple = 0.0;
     float local_ion_couple = 0.0;
+    rvec *local_f_per_k;
+    float k_this_step = 0.0;
 
     snew(global_bcl_x, BCL_N_ATOMS);
     snew(global_bcl_q, BCL_N_ATOMS);
     snew(global_bcl_i, BCL_N_ATOMS);
     snew( local_bcl_f, BCL_N_ATOMS);
     snew(local_site_n_couple, site_count);
+    snew(local_f_per_k, md->homenr);
 
     // Communicate the positions of the BCL atoms to all dd nodes
     if (cr && DOMAINDECOMP(cr))
@@ -1514,10 +1518,10 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         //1 Gather the number of BCL atoms in each domain to prepare for a
         //  gatherv operation of the positions
         int total_nmatch=0;
-        int bcl_ind_iter;
-        for (bcl_ind_iter=bcl_ind_min ; bcl_ind_iter <= bcl_ind_max ; bcl_ind_iter++)
+        for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++)
         {
-            int cell_id = dd->ga2la->laa[bcl_ind_iter].cell;
+            int this_bcl_global = bcl_count + bcl_ind_min;
+            int cell_id = dd->ga2la->laa[this_bcl_global].cell;
             if (cell_id == 0)
             {
                 total_nmatch++;
@@ -1545,19 +1549,19 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             snew(mydomain_bcl_q, total_nmatch);
             snew(mydomain_bcl_i, total_nmatch);
             int nmatch=0;
-            for (bcl_ind_iter=bcl_ind_min ; bcl_ind_iter <= bcl_ind_max ; bcl_ind_iter++)
+            for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++)
             {
-                int cell_id = dd->ga2la->laa[bcl_ind_iter].cell;
-                int local_index = dd->ga2la->laa[bcl_ind_iter].la;
+                int this_bcl_global = bcl_count + bcl_ind_min;
+                int cell_id     = dd->ga2la->laa[this_bcl_global].cell;
+                int local_index = dd->ga2la->laa[this_bcl_global].la;
                 if (cell_id == 0)
                 {
                     // fill mydomain_bcl_i
-                    mydomain_bcl_i[nmatch] = bcl_ind_iter;
+                    mydomain_bcl_i[nmatch] = this_bcl_global;
                     // fill mydomain_bcl_x
                     copy_rvec(x[local_index], mydomain_bcl_x[nmatch]);
                     // fill mydomain_bcl_q
-                    int this_bcl_index = bcl_ind_iter - bcl_ind_min;
-                    mydomain_bcl_q[nmatch] = bcl_cdc_charges[this_bcl_index];
+                    mydomain_bcl_q[nmatch] = bcl_cdc_charges[bcl_count];
                     // increment the domain-specific counter
                     nmatch++;
                 }
@@ -1615,9 +1619,6 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         gmx_bcast(sizeof(real   )*BCL_N_ATOMS, global_bcl_q, cr);
 
         //4 Perform the cdc calculation locally
-        //6 Communicate the slope
-        //7 Perform the forces locally
-        //8 Apply the environment forces locally
         //GOTO
         int match_counter=0;
         //x printf("Node %d: md->start=%d and md->homenr=%d, k = %.3f\n",cr->nodeid, md->start, md->homenr, pgrp->k);
@@ -1630,6 +1631,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             gmx_bool first_isnan=TRUE;
             for (env_local = md->start ; env_local < md->start+md->homenr ; env_local++)
             {
+                int f_local = env_local-md->start;
                 // Check that the environment atom and the BCL atom are not
                 // the same atoms!!
                 // i.e. either the bcl atom does not belong to this cell 
@@ -1650,6 +1652,9 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     
                     pbc_dx(pbc, *bi, *ej, bi_ej_dx);
                     real bi_ej_dist = norm(bi_ej_dx);
+                    //! Negative sign in front of global_bcl_q because the charge 
+                    //  array at the top is off by a negative sign, i.e. Qg - Qe  
+                    //  instead of Qe - Qg
                     real bi_ej_couple   = md->chargeA[env_local] 
                                           * -global_bcl_q[bcl_count]
                                           * ONE_4PI_EPS0       // electrostatics
@@ -1658,15 +1663,13 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
                     real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
                                                        / bi_ej_dist
-                                                       / bi_ej_dist
-                                                       * pgrp->k; //bias scale
+                                                       / bi_ej_dist; //bias scale
                     svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
-                    rvec_inc(local_bcl_f[bcl_count], bi_ej_force);
-                    rvec_dec(          f[env_local], bi_ej_force);
-                    V_cdc += bi_ej_pot;
+                    rvec_inc(  local_bcl_f[bcl_count], bi_ej_force);
+                    rvec_dec(local_f_per_k[  f_local], bi_ej_force);
                     if (isnan(bi_ej_pot) && first_isnan)
                     {
-                        printf("Something has gone horribly is_nan on %d; bcl_global=%d and env_local=%d\n", cr->nodeid, this_bcl_global, env_local);
+                        printf("Potental has gone horribly is_nan on %d; bcl_global=%d and env_local=%d\n", cr->nodeid, this_bcl_global, env_local);
                         printf("\tchromo (%d) pos: %.3f %.3f %.3f\n", bcl_count, *bi[0], *bi[1], *bi[2]);
                         printf("\tenviron pos: %.3f %.3f %.3f\n", *ej[0], *ej[1], *ej[2]);
                         printf("\tcharges b/e: %.3f %.3f\n",  md->chargeA[env_local], global_bcl_q[bcl_count]);
@@ -1676,6 +1679,10 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     local_bcl_couple += bi_ej_pot;
                     //x This is all if we know the global index... but this might not even be useful
                     //x   if we're only biasing on the full gap!!!
+                    //x 
+                    //x Also, if we want to sample this in equilibrium, we don't need to run our
+                    //x   simulations for a full equilibration time, so we can begin sampling immediately!
+                    //x 
                     //x int env_global = env_local;//TODO This is horrendously incorrect; fix it!
                     //x if (env_global < PROTEIN_N_ATOMS)
                     //x {
@@ -1707,13 +1714,45 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         //gmx_sumf(site_count, local_site_n_couple, cr);
         gmx_sumf(1, &local_bcl_couple, cr);
         
-        //9 MapReduce Sum the BCL forces globally
+        //6 MapReduce Sum the BCL forces globally
         for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++)
         {
             gmx_sum(3, local_bcl_f[bcl_count], cr);
         }
+
+        //7 Commpute the slope, whether in umbrella or constant pull
+        k    = (1.0 - lambda)*pgrp->k + lambda*pgrp->kB;
+        dkdl = pgrp->kB - pgrp->k;
+        if (ePull == epullUMBRELLA)
+        {
+            float gap_offset = pgrp->kB - local_bcl_couple;
+            //TODO Figure out sign problem??
+            pgrp->f_scal    =     -k * gap_offset;
+            V               = 0.5* k * sqr(gap_offset);
+            dVdl            = 0.5* k * sqr(gap_offset);
+        }
+        else
+        {
+            //TODO Figure out sign problem??
+            pgrp->f_scal  =   -k;
+            V            +=    k*local_bcl_couple;
+            dVdl         += dkdl*local_bcl_couple;
+        }
+        
+        if (MASTER(cr)) printf("F-scale: %f\n", pgrp->f_scal);
+
+        //8 Apply the environment forces (local, all)
+        for (env_local = md->start ; env_local < md->start+md->homenr ; env_local++)
+        {
+            // Scale forces by f_scal computed in 7
+            int f_local = env_local-md->start;
+            rvec bi_ej_force;
+            svmul(pgrp->f_scal, local_f_per_k[f_local], bi_ej_force);
+            rvec_inc(f[env_local], bi_ej_force);
+        }
+        
  
-        //10 Apply local_bcl_f to bcl atoms in domains that own bcl atoms
+        //9 Apply local_bcl_f to bcl atoms (local, in domains that own bcl atoms)
         if (total_nmatch > 0)
         {
             for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++)
@@ -1723,16 +1762,17 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                 int this_bcl_local = dd->ga2la->laa[this_bcl_global].la;
                 if (this_bcl_cell_id == 0 && global_bcl_q[bcl_count] != 0.0)
                 {
-                    //x printf("Adding force to bcl_count atom %d, %.3f %.3f %.3f\n", bcl_count, 
-                    //x         local_bcl_f[bcl_count][0],
-                    //x         local_bcl_f[bcl_count][1],
-                    //x         local_bcl_f[bcl_count][2]);
-                    rvec_inc(f[this_bcl_local], local_bcl_f[bcl_count]);
+                    //! Directionality for force has been included in 4 and local_bcl_f
+                    //! Ergo, ej_bi instead of bi_ej.
+                    rvec ej_bi_force; 
+                    svmul(pgrp->f_scal, local_bcl_f[bcl_count], ej_bi_force);
+                    rvec_inc(f[this_bcl_local], ej_bi_force);
+                    //printf("%.3f %.3f %.3f\n", ej_bi_force[0], ej_bi_force[1], ej_bi_force[2]);
                 }
             }
         }
 
-        //11 Clean up after all is done
+        //10 Clean up after all is done
         // Free the allocated global arrays and summarize the results
         if (DDMASTER(dd))
         {
@@ -1769,9 +1809,13 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     sfree(global_bcl_i);
     sfree( local_bcl_f);
     sfree(local_site_n_couple);
+    snew(local_f_per_k, md->homenr);
 
-    *dvdlambda += dVdl;
-    return (MASTER(cr) ? V_cdc : 0.0);
+    if (MASTER(cr))
+    {
+        *dvdlambda += dVdl;
+    }
+    return (MASTER(cr) ? V : 0.0);
 
     //// // If we are in serial, do things the serial way!
     //// else
