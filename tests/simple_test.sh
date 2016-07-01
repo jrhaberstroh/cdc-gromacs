@@ -26,6 +26,10 @@ base=$SRCDIR/..
 
 export GMX_MAXBACKUPS=-1
 MY_MDRUN=${1?pass the mdrun executable that you would like to test as \$1}
+GROMPP=${GROMPP-grompp}
+
+echo "MDRUN for simple_test: $MY_MDRUN"
+echo "GROMPP for simple_test: $GROMPP"
 
 # MY_MDRUN=$HOME/local/gromacs_umb_serial-4.6.7/bin/mdrun_umb_serial
 
@@ -42,7 +46,7 @@ MY_MDRUN=${1?pass the mdrun executable that you would like to test as \$1}
 #     TOP       forcefield topology
 #     RESTART   (true/false): run job as a restart?
 #     MDPIN     input mdp file (see mdp/test.mdp for template)
-GROMPP=grompp MDRUN=$MY_MDRUN                                                 \
+GROMPP=$GROMPP MDRUN=$MY_MDRUN                                                \
     G_ENERGY=g_energy OUTDIR=$SRCDIR/out-simple_test                          \
     INDEX=$base/FMO_conf/index.ndx                                            \
     TOP=$base/FMO_conf/4BCL.top                                               \
