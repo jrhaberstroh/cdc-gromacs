@@ -49,4 +49,4 @@ pull-dim                = Y Y Y
 pull-ngroups            = 1
 pull-group1 = <TOFILL>
 pull-k1 = <TOFILL>
-pull-kB1 = -4.5
+pull-kB1 = 25
