@@ -60,7 +60,7 @@ fi
 if [ "$MODE" = "MAKE" ]; then
     cd $SRCDIR
 
-    f1=mod-gromacs-4.6.7/src/mdlib/pull.c
+    f1=modifications-4.6.7/src/mdlib/pull.c
     f2=$gromacs_base/src/mdlib/pull.c
     cmp --silent $f1 $f2 || cp $f1 $f2
     cd $gromacs_base/build-mpi

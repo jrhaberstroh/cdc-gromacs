@@ -60,7 +60,7 @@ fi
 
 if [ "$MODE" = "MAKE" ]; then
     cd $SRCDIR
-    cp mod-gromacs-4.6.7/src/mdlib/* $build_dir/src/mdlib
+    cp modifications-4.6.7/src/mdlib/* $build_dir/src/mdlib
     cd $build_dir/build_mpi
     make -j 4 
     make install
