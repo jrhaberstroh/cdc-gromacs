@@ -66,6 +66,7 @@
 #include "domdec_network.h"
 
 #define BCL_N_ATOMS 140
+#define BCL_N_BCL 7
 #define ION_N_ATOMS 3
 // GOTO header
 // Computed as Qb0 - Qb1
@@ -1468,8 +1469,9 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     rvec     *local_bcl_f_per_k  = NULL;
     rvec     *local_env_f_per_k  = NULL;
     gmx_bool *local_env_is_bcl = NULL;
+    float local_cdc_total = 0.0;
     float *local_site_n_couple = NULL;
-    float local_bcl_couple = 0.0;
+    float *local_bcl_couple = NULL;
     float local_solvent_couple = 0.0;
     float local_ion_couple = 0.0;
     float k_this_step = 0.0;
@@ -1481,6 +1483,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     snew(local_env_f_per_k, md->homenr);
     snew(local_env_is_bcl, md->homenr);
     snew(local_site_n_couple, site_count);
+    snew(local_bcl_couple, BCL_N_BCL);
 
     // Communicate the positions of the BCL atoms to all dd nodes
     if (cr && DOMAINDECOMP(cr))
@@ -1524,7 +1527,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         {
             int this_bcl_global = bcl_count + bcl_ind_min;
             int cell_id = dd->ga2la->laa[this_bcl_global].cell;
-            if (cell_id == 0)
+            if (ga2la_is_home(dd->ga2la, this_bcl_global))
             {
                 total_nmatch++;
             }
@@ -1556,7 +1559,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                 int this_bcl_global = bcl_count + bcl_ind_min;
                 int cell_id     = dd->ga2la->laa[this_bcl_global].cell;
                 int local_index = dd->ga2la->laa[this_bcl_global].la;
-                if (cell_id == 0)
+                if (ga2la_is_home(dd->ga2la, this_bcl_global))
                 {
                     // fill mydomain_bcl_i
                     mydomain_bcl_i[nmatch] = this_bcl_global;
@@ -1642,9 +1645,13 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             }
         }
         
+        //DEBUG
         // match_counter is a debug tool to track number of matches to BCL atoms
-        // over all domains. This number should match number of atoms in BCL.
+        // over all domains. perf_match_counter should match number of atoms in BCL,
+        // and match_counter will be the square of BCL atoms-in-cell for each cell.
+        // As a note for developers, this could be converted into an automated test.
         int match_counter=0;
+        int perf_match_counter=0;
         for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++) 
         {
             int this_bcl_global = global_bcl_i[bcl_count];
@@ -1654,15 +1661,20 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             gmx_bool first_isnan=TRUE;
             for (env_local = md->start ; env_local < md->start+md->homenr ; env_local++)
             {
+                //DEBUG
                 if (local_env_is_bcl[env_local])
                 {
                     match_counter++;
+                    if (this_bcl_local == env_local){
+                        perf_match_counter++;
+                    }
                     continue;
                 }
-                int f_local = env_local-md->start;
-                
-                // Create reference variable for coordinates of relevant
-                //   bcl atom and environment atom
+
+                // f_local: local index (zero-based instead of md->start based)
+                int f_local = env_local - md->start;
+                // Create reference variables for coordinates of relevant
+                // bcl atom and environment atom
                 rvec *bi = &(global_bcl_x[bcl_count]);
                 rvec *ej = &(           x[env_local]);
 
@@ -1698,52 +1710,46 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     first_isnan=FALSE;
                 }
                 
-                local_bcl_couple += bi_ej_pot;
+                local_cdc_total += bi_ej_pot;
 #ifndef NO_PRINT_SITES
-                //TODO: Make this work!
-                //TODO: env_global = gmx_ga2la->lal[env_local]->ga  ??
-                //TODO: Check the above against bcl_global_i array ^.^
-                //x This is all if we know the global index... but this might not even be useful 
-                //x   if we're only biasing on the full gap!!!
-                //x 
-                //x Also, if we want to sample this in equilibrium, we don't need to run our
-                //x   simulations for a full equilibration time, so we can begin sampling immediately!
-                //x 
-                //x int env_global = env_local;//TODO This is horrendously incorrect; fix it!
-                //x if (env_global < PROTEIN_N_ATOMS)
-                //x {
-                //x     int this_site=BCL4_resnr[env_global] ;
-                //x     if (this_site >= site_count)
-                //x     {
-                //x         printf("Something has gone horribly wrong; this_site=%d\n", this_site);
-                //x     }
-                //x     local_site_n_couple[ BCL4_resnr[env_global]  ] += bi_ej_pot;
-                //x }
-                //x else if (env_global < (PROTEIN_N_ATOMS + 7 * BCL_N_ATOMS) )
-                //x {
-                //x     local_bcl_couple += bi_ej_pot;
-                //x }
-                //x else if (env_global < (md->nr - ION_N_ATOMS))
-                //x {
-                //x     local_solvent_couple += bi_ej_pot;
-                //x }
-                //x else
-                //x {
-                //x     local_ion_couple += bi_ej_pot;
-                //x }
+                int env_global = dd->gatindex[env_local];
+                if (env_global < PROTEIN_N_ATOMS)
+                {
+                    int this_site=BCL4_resnr[env_global] ;
+                    if (this_site >= site_count)
+                    {
+                        printf("Something has gone horribly wrong; this_site=%d\n", this_site);
+                    }
+                    local_site_n_couple[ BCL4_resnr[env_global]  ] += bi_ej_pot;
+                }
+                else if (env_global < (PROTEIN_N_ATOMS + (BCL_N_BCL * BCL_N_ATOMS)) )
+                {
+                    int bin = (env_global - PROTEIN_N_ATOMS) / BCL_N_ATOMS;
+                    local_bcl_couple[bin] += bi_ej_pot;
+                }
+                else if (env_global < (md->nr - ION_N_ATOMS))
+                {
+                    local_solvent_couple += bi_ej_pot;
+                }
+                else
+                {
+                    local_ion_couple += bi_ej_pot;
+                }
 #endif
                  
             }
         }
 
-        //DEBUG!!
-        printf("Node %d: DONE, found %d matches\n",cr->nodeid, match_counter);
-        //DEBUG!!
+        //DEBUG
+        //printf("Node %d: DONE, found %d matches\n",cr->nodeid, match_counter);
+        //printf("Node %d: DONE, found %d PERFECT matches\n",cr->nodeid, perf_match_counter);
 
-
-        //5 Communicate the total gap
-        //gmx_sumf(site_count, local_site_n_couple, cr);
-        gmx_sumf(1, &local_bcl_couple, cr);
+        //5 Sum and distribute cdc calculations from each node
+        gmx_sumf(site_count, local_site_n_couple, cr);
+        gmx_sumf(BCL_N_BCL,  local_bcl_couple, cr);
+        gmx_sumf(1, &local_cdc_total, cr);
+        gmx_sumf(1, &local_solvent_couple, cr);
+        gmx_sumf(1, &local_ion_couple, cr);
         
         //6 MapReduce Sum the BCL forces globally
         for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++)
@@ -1756,18 +1762,16 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         dkdl = pgrp->kB - pgrp->k;
         if (ePull == epullUMBRELLA)
         {
-            float gap_offset = pgrp->kB - local_bcl_couple;
-            //TODO Figure out sign problem??
+            float gap_offset = pgrp->kB - local_cdc_total;
             pgrp->f_scal    =     -k * gap_offset;
             V               = 0.5* k * sqr(gap_offset);
             dVdl            = 0.5* k * sqr(gap_offset);
         }
         else
         {
-            //TODO Figure out sign problem??
             pgrp->f_scal  =   -k;
-            V            +=    k*local_bcl_couple;
-            dVdl         += dkdl*local_bcl_couple;
+            V            +=    k*local_cdc_total;
+            dVdl         += dkdl*local_cdc_total;
         }
         
         if (MASTER(cr)) printf("F-scale: %f\n", pgrp->f_scal);
@@ -1775,7 +1779,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         //8 Apply the environment forces (local, all)
         for (env_local = md->start ; env_local < md->start+md->homenr ; env_local++)
         {
-            // Scale forces by f_scal computed in 7
+            // Scale forces by f_scal computed in step 7
             int f_local = env_local-md->start;
             rvec bi_ej_force;
             svmul(pgrp->f_scal, local_env_f_per_k[f_local], bi_ej_force);
@@ -1791,7 +1795,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                 int this_bcl_global = global_bcl_i[bcl_count];
                 int this_bcl_cell_id = dd->ga2la->laa[this_bcl_global].cell;
                 int this_bcl_local = dd->ga2la->laa[this_bcl_global].la;
-                if (this_bcl_cell_id == 0 && global_bcl_q[bcl_count] != 0.0)
+                if (ga2la_is_home(dd->ga2la, this_bcl_global))
                 {
                     //! Directionality for force has been included in 4 and local_bcl_f_per_k
                     //! Ergo, ej_bi instead of bi_ej.
@@ -1810,7 +1814,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             int i;
 
 #ifdef NO_PRINT_CDC_SITES
-            printf("CDC[cm-1] %.3f, %.5f\n", t, local_bcl_couple * kJ2cm1);
+            printf("CDC[cm-1] %.3f, %.5f\n", t, local_cdc_total * kJ2cm1);
 #else
             //? Is printing lots of stuff every step the bottleneck?
             //? It would be great to know what the bottleneck is...
@@ -1819,6 +1823,12 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             {
                 printf(" %.3f", local_site_n_couple[i] * kJ2cm1);
             }
+            for (i = 0 ; i < BCL_N_BCL ; i++)
+            {
+                printf(" %.3f", local_bcl_couple[i] * kJ2cm1);
+            }
+            printf(" %.3f", local_solvent_couple * kJ2cm1);
+            printf(" %.3f", local_ion_couple * kJ2cm1);
             printf("\n");
 #endif
             sfree(master_nbcl);
@@ -1845,116 +1855,13 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     sfree(local_env_f_per_k);
     sfree(local_env_is_bcl);
     sfree(local_site_n_couple);
+    sfree(local_bcl_couple);
 
     if (MASTER(cr))
     {
         *dvdlambda += dVdl;
     }
     return (MASTER(cr) ? V : 0.0);
-
-    //// // If we are in serial, do things the serial way!
-    //// else
-    //// {
-    ////     
-    ////     int i = 0;
-    ////     for (i = 0 ; i < PROTEIN_N_ATOMS - 1 ; i++)
-    ////     {
-    ////         if (BCL4_resnr[i+1] < BCL4_resnr[i]){
-    ////             fprintf(stderr, "\nERROR!!!!!! site %d has a non-ascending resnr", i);
-    ////         }
-    ////     }
-    //// 
-    ////     int n_ions = 3;
-    ////     int n_bcl_atoms = 140;
-    ////     dVdl = 0.0;
-    ////     V_cdc = 0.0;
-    //// 
-    ////     t_pullgrp *pgrp;
-    ////     real pull_force;
-    ////     int bcl_count, env_ind;
-    ////     rvec xrefr = {0, 0, 0};
-    ////     
-    ////     pgrp = &pull->grp[1];
-    ////     pull_force = pgrp->k;
-    ////     int bcl_ind_min = pgrp->ind[0];
-    //// 
-    ////     for (i = 0 ; i < site_count ; i ++)
-    ////     {
-    ////         site_n_couple[i] = 0.0;
-    ////     }
-    //// 
-    ////     for (bcl_count = 0 ; bcl_count < pgrp->nat ; bcl_count++)
-    ////     {
-    ////         int bcl_ind = pgrp->ind[bcl_count];
-    ////         for (env_ind = 0 ; env_ind < md->nr ; env_ind++)
-    ////         {
-    ////             if (env_ind == bcl_ind_min)
-    ////             {
-    ////                 env_ind += BCL_N_ATOMS;
-    ////             }
-    ////             rvec bi;
-    ////             rvec ej;
-    ////             rvec bi_ej_force;
-    ////             rvec bi_ej_dx;
-    ////             
-    ////             copy_rvec(x[bcl_ind], bi);
-    ////             copy_rvec(x[env_ind], ej);
-    ////             
-    ////             pbc_dx(pbc, bi, ej, bi_ej_dx);
-    ////             real bi_ej_dist = norm(bi_ej_dx);
-    ////             real bi_ej_couple   = md->chargeA[env_ind] 
-    ////                                   * -bcl_cdc_charges[bcl_count]
-    ////                                   * ONE_4PI_EPS0       // electrostatics
-    ////                                   * .3333              // screening
-    ////             ;
-    ////             real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
-    ////             real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
-    ////                                                / bi_ej_dist
-    ////                                                / bi_ej_dist
-    ////                                                * pgrp->k; //bias scale
-    ////             svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
-    ////             // printf("Force: %f\n", norm(bi_ej_force));
-    ////             // printf("Distance %d-%d: %f Angstrom\n", bcl_ind, env_ind,
-    ////             //         bi_ej_dist);
-    ////             rvec_inc(f[bcl_ind], bi_ej_force);
-    ////             rvec_dec(f[env_ind], bi_ej_force);
-    ////             V_cdc += bi_ej_pot;
-    ////             
-    ////             if (env_ind < PROTEIN_N_ATOMS)
-    ////             {
-    ////                 site_n_couple[ BCL4_resnr[env_ind]  ] += bi_ej_pot;
-    ////             }
-    ////             else if (env_ind < (PROTEIN_N_ATOMS + 7 * n_bcl_atoms) )
-    ////             {
-    ////                 bcl_couple += bi_ej_pot;
-    ////             }
-    ////             else if (env_ind < (md->nr - n_ions))
-    ////             {
-    ////                 solvent_couple += bi_ej_pot;
-    ////             }
-    ////             else
-    ////             {
-    ////                 ion_couple += bi_ej_pot;
-    ////             }
-    ////         }
-    ////     }
-    ////     printf("CDC[GromacsUnits], %.3f ", t);
-    ////     int resnr;
-    ////     for (resnr = 0 ; resnr < site_count ; resnr++)
-    ////     {
-    ////         if (resnr != 0)
-    ////         {
-    ////             printf(" ");
-    ////         }
-    ////         printf("%f", site_n_couple[resnr]);
-    ////     }
-    ////     printf(" %f",     bcl_couple);
-    ////     printf(" %f", solvent_couple);
-    ////     printf(" %f",     ion_couple);
-    ////     printf("\n");
-    ////     free(site_n_couple);
-    //// }
-
 }
 
 void pull_constraint(t_pull *pull, t_mdatoms *md, t_pbc *pbc,

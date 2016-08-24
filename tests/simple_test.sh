@@ -16,6 +16,7 @@ MY_MDRUN=${1?pass the mdrun executable that you would like to test as \$1}
 export GMX_MAXBACKUPS=-1
 base=$SRCDIR/..
 GROMPP=${GROMPP-grompp}
+CHROMO=${CHROMO-371}
 
 echo "MDRUN for simple_test: $MY_MDRUN"
 echo "GROMPP for simple_test: $GROMPP"
@@ -74,7 +75,7 @@ pull-nstfout            = 0
 pull-geometry           = direction-periodic
 pull-dim                = Y Y Y
 pull-ngroups            = 1
-pull-group1 = BCL_BCL_371
+pull-group1 = BCL_BCL_${CHROMO}
 pull-k1 = 10.0
 MDP
 
