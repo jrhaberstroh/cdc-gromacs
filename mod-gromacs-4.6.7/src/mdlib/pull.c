@@ -1598,7 +1598,6 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         printf(" %.3f", site_n_couple[resnr] * kJ2cm1);
     }
     printf("\n");
-
     free(site_n_couple);
 
     *dvdlambda += dVdl;
