@@ -1399,8 +1399,7 @@ static void dump_data_frame_trn(int ndata, float *data, const char *filename, re
     {
         natoms = ndata/3;
     }
-    printf("There are %d data values. Will fill %d atoms worth of rows with data.\n",
-           ndata, natoms);
+    //DEBUG
 
     snew(x, natoms);
     for (i = 0; (i < ndata); i++)
@@ -1409,6 +1408,8 @@ static void dump_data_frame_trn(int ndata, float *data, const char *filename, re
     }
     if (time == 0.0){
         trn = open_trn(filename, "w");
+        printf("There are %d data values. Will fill %d atoms worth of rows with data.\n",
+               ndata, natoms);
     }
     else
     {
@@ -1587,6 +1588,9 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         }
     }
     double kJ2cm1 = 83.593;
+    const char * filename = "/home/jhaberstroh/Code/photosynth/cdc-gromacs/test-output/cdc-output.trr";
+    dump_data_frame_trn(site_count + 7 + 2, site_n_couple, filename, t);
+
     printf("CDC[cm-1] t=%.3f", t);
     int resnr;
     for (resnr = 0 ; resnr < site_count + 7 + 2; resnr++)
@@ -1594,8 +1598,6 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         printf(" %.3f", site_n_couple[resnr] * kJ2cm1);
     }
     printf("\n");
-    const char * filename = "/home/jhaberstroh/Code/photosynth/cdc-gromacs/test-output/cdc-output.trr";
-    dump_data_frame_trn(site_count + 7 + 2, site_n_couple, filename, t);
 
     free(site_n_couple);
 
