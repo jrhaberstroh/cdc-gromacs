@@ -1545,6 +1545,8 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             }
             assert(sum_total_nmatch == BCL_N_ATOMS);
         }
+        int nat_global = dd->nat_home;
+        gmx_sumi(1, &nat_global, cr);
 
         //2 GatherV mydomain_bcl_x to global_bcl_x
         //2a if we found matches in 1, allocate and populate "mydomain" variables
@@ -1652,6 +1654,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         // As a note for developers, this could be converted into an automated test.
         int match_counter=0;
         int perf_match_counter=0;
+        int ion_match_counter=0;
         for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++) 
         {
             int this_bcl_global = global_bcl_i[bcl_count];
@@ -1727,22 +1730,26 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     int bin = (env_global - PROTEIN_N_ATOMS) / BCL_N_ATOMS;
                     local_bcl_couple[bin] += bi_ej_pot;
                 }
-                else if (env_global < (md->nr - ION_N_ATOMS))
+                else if (env_global < (nat_global - ION_N_ATOMS))
                 {
                     local_solvent_couple += bi_ej_pot;
                 }
                 else
                 {
                     local_ion_couple += bi_ej_pot;
+                    ion_match_counter++;
                 }
 #endif
                  
             }
         }
 
-        //DEBUG
+        ////DEBUG
         //printf("Node %d: DONE, found %d matches\n",cr->nodeid, match_counter);
         //printf("Node %d: DONE, found %d PERFECT matches\n",cr->nodeid, perf_match_counter);
+        //printf("Node %d: DONE, found %d \"ions\"\n",cr->nodeid, ion_match_counter/140);
+        //printf("Node %d: DONE, total atoms in simulation = %d\n",cr->nodeid, nat_global);
+        
 
         //5 Sum and distribute cdc calculations from each node
         gmx_sumf(site_count, local_site_n_couple, cr);

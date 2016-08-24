@@ -65,13 +65,16 @@ if [ "$MODE" = "MAKE" ]; then
     cmp --silent $f1 $f2 || cp $f1 $f2
     cd $gromacs_base/build-mpi
     # Reverse the sed operations for _ump_mpi_tot (in case they happened)
-    sed -i 's/^CMAKE_C_FLAGS:STRING=-DNO_PRINT_CDC_SITES /CMAKE_C_FLAGS:STRING=/' CMakeCache.txt
+    sed -i 's/^CMAKE_C_FLAGS:STRING=-DNO_PRINT_CDC_SITES/CMAKE_C_FLAGS:STRING=/' CMakeCache.txt
     sed -i 's/^GMX_BINARY_SUFFIX:STRING=_umb_mpi_tot/GMX_BINARY_SUFFIX:STRING=_umb_mpi/' CMakeCache.txt
     make -j 16 
     make install-mdrun
+
+fi
+
+if [ "$MODE" = "TOTAL-ONLY" ]; then
     sed -i 's/^CMAKE_C_FLAGS:STRING=/CMAKE_C_FLAGS:STRING=-DNO_PRINT_CDC_SITES /' CMakeCache.txt
     sed -i 's/^GMX_BINARY_SUFFIX:STRING=_umb_mpi/GMX_BINARY_SUFFIX:STRING=_umb_mpi_tot/' CMakeCache.txt
     make -j 16 
     make install-mdrun
-
 fi
