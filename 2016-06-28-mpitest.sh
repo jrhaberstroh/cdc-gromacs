@@ -11,3 +11,4 @@ cmp --silent $f1 $f2 || ./build_ubuntu_mpi.sh
 #l8r ./tests/simple_test.sh $HOME/local/gromacs_umb_mpi-4.6.7/bin/mdrun_umb_mpi
 #l8r sleep 2
 CHROMO=371 ./tests/simple_test.sh "mpirun -np 6 $HOME/local/gromacs_umb_mpi-4.6.7/bin/mdrun_umb_mpi"
+CHROMO=371 ./tests/simple_test.sh "mpirun -np 6 $HOME/local/gromacs_umb_mpi-4.6.7/bin/mdrun_umb_mpi_tot"
