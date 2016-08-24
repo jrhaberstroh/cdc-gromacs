@@ -1482,8 +1482,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     int bcl_ind_min = pgrp->ind[0];
 
     int site_count = BCL4_resnr[PROTEIN_N_ATOMS-1] - BCL4_resnr[0] + 1;
-    float * site_n_couple = (float *) calloc(site_count, sizeof(float));
-    float bcl_couple = 0.0;
+    float * site_n_couple = (float *) calloc(site_count+7, sizeof(float));
     float solvent_couple = 0.0;
     float ion_couple = 0.0;
     for (i = 0 ; i < site_count ; i ++)
@@ -1535,7 +1534,9 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             }
             else if (env_ind < (PROTEIN_N_ATOMS + 7 * n_bcl_atoms) )
             {
-                bcl_couple += bi_ej_pot;
+                int bin = (env_ind - PROTEIN_N_ATOMS) / n_bcl_atoms;
+                printf("%d ", bin);
+                site_n_couple[ site_count + bin ] += bi_ej_pot;
             }
             else if (env_ind < (md->nr - n_ions))
             {
@@ -1550,15 +1551,10 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     double kJ2cm1 = 83.593;
     printf("CDC[cm-1], %.3f ", t);
     int resnr;
-    for (resnr = 0 ; resnr < site_count ; resnr++)
+    for (resnr = 0 ; resnr < site_count + 7 ; resnr++)
     {
-        if (resnr != 0)
-        {
-            printf(" ");
-        }
-        printf("%f", site_n_couple[resnr] * kJ2cm1);
+        printf(" %f", site_n_couple[resnr] * kJ2cm1);
     }
-    printf(" %f",     bcl_couple * kJ2cm1);
     printf(" %f", solvent_couple * kJ2cm1);
     printf(" %f",     ion_couple * kJ2cm1);
     printf("\n");
