@@ -36,6 +36,9 @@ fi
 if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
     echo "BUILDING..."
     cd $gromacs_base
+    if [ ! -e build-mpi ]; then
+        mkdir build-mpi
+    fi
     cd build-mpi
     cmake ..                                        \
             -DGMX_MPI=on                            \
