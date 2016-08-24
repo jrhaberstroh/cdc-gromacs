@@ -64,6 +64,7 @@ int env_atm = 4025;
 #include "gmx_ga2la.h"
 #include "copyrite.h"
 #include "physics.h"
+#include "trnio.h"
 
 #define BCL_N_ATOMS 140
 
@@ -1380,6 +1381,45 @@ static void do_pull_pot(int ePull,
     }
 }
 
+
+static void dump_data_frame_trn(int ndata, float *data, const char *filename, real time)
+{
+    int i;
+    int natoms;
+    t_fileio *trn;
+    rvec     *x;
+    // Meaningless box for io
+    matrix    box = {{2, 0, 0}, {0, 2, 0}, {0, 0, 2}};
+    
+    if ((ndata % 3) != 0)
+    {
+        natoms = 1+ndata/3;
+    }
+    else
+    {
+        natoms = ndata/3;
+    }
+    printf("There are %d data values. Will fill %d atoms worth of rows with data.\n",
+           ndata, natoms);
+
+    snew(x, natoms);
+    for (i = 0; (i < ndata); i++)
+    {
+        x[i/3][i%3] = data[i];
+    }
+    if (time == 0.0){
+        trn = open_trn(filename, "w");
+    }
+    else
+    {
+        trn = open_trn(filename, "a");
+    }
+    fwrite_trn(trn, 0, time, 0, box, natoms, x, NULL, NULL);
+    close_trn(trn);
+    sfree(x);
+}
+
+
 // From src/mdlib/sim_util.c:
 //
 //     enerd->term[F_COM_PULL] +=
@@ -1443,6 +1483,7 @@ static void do_pull_pot(int ePull,
 //     dvec        f;          /* force due to the pulling/constraining */
 // } t_pullgrp;
 
+
 real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     t_commrec *cr, double t, real lambda,
                     rvec *x, rvec *f, tensor vir, real *dvdlambda)
@@ -1482,9 +1523,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     int bcl_ind_min = pgrp->ind[0];
 
     int site_count = BCL4_resnr[PROTEIN_N_ATOMS-1] - BCL4_resnr[0] + 1;
-    float * site_n_couple = (float *) calloc(site_count+7, sizeof(float));
-    float solvent_couple = 0.0;
-    float ion_couple = 0.0;
+    float * site_n_couple = (float *) calloc(site_count+7+2, sizeof(float));
     for (i = 0 ; i < site_count ; i ++)
     {
         site_n_couple[i] = 0.0;
@@ -1535,29 +1574,29 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             else if (env_ind < (PROTEIN_N_ATOMS + 7 * n_bcl_atoms) )
             {
                 int bin = (env_ind - PROTEIN_N_ATOMS) / n_bcl_atoms;
-                printf("%d ", bin);
                 site_n_couple[ site_count + bin ] += bi_ej_pot;
             }
             else if (env_ind < (md->nr - n_ions))
             {
-                solvent_couple += bi_ej_pot;
+                site_n_couple[ site_count + 7 + 0 ] += bi_ej_pot;
             }
             else
             {
-                ion_couple += bi_ej_pot;
+                site_n_couple[ site_count + 7 + 1 ] += bi_ej_pot;
             }
         }
     }
     double kJ2cm1 = 83.593;
-    printf("CDC[cm-1], %.3f ", t);
+    printf("CDC[cm-1] t=%.3f", t);
     int resnr;
-    for (resnr = 0 ; resnr < site_count + 7 ; resnr++)
+    for (resnr = 0 ; resnr < site_count + 7 + 2; resnr++)
     {
-        printf(" %f", site_n_couple[resnr] * kJ2cm1);
+        printf(" %.3f", site_n_couple[resnr] * kJ2cm1);
     }
-    printf(" %f", solvent_couple * kJ2cm1);
-    printf(" %f",     ion_couple * kJ2cm1);
     printf("\n");
+    const char * filename = "/home/jhaberstroh/Code/photosynth/cdc-gromacs/test-output/cdc-output.trr";
+    dump_data_frame_trn(site_count + 7 + 2, site_n_couple, filename, t);
+
     free(site_n_couple);
 
     *dvdlambda += dVdl;
