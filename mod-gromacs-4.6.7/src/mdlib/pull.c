@@ -1461,16 +1461,17 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
 
     int bcl_ind_min = pgrp->ind[0];
     int bcl_ind_max = bcl_ind_min + BCL_N_ATOMS - 1;
-    int     *master_nbcl = NULL;
-    rvec    *global_bcl_x  = NULL;
-    real    *global_bcl_q  = NULL;
-    atom_id *global_bcl_i  = NULL;
+    int      *master_nbcl = NULL;
+    rvec     *global_bcl_x  = NULL;
+    real     *global_bcl_q  = NULL;
+    atom_id  *global_bcl_i  = NULL;
     rvec     *local_bcl_f_per_k  = NULL;
+    rvec     *local_env_f_per_k  = NULL;
+    gmx_bool *local_env_is_bcl = NULL;
     float *local_site_n_couple = NULL;
     float local_bcl_couple = 0.0;
     float local_solvent_couple = 0.0;
     float local_ion_couple = 0.0;
-    rvec *local_env_f_per_k;
     float k_this_step = 0.0;
 
     snew(global_bcl_x, BCL_N_ATOMS);
@@ -1478,6 +1479,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     snew(global_bcl_i, BCL_N_ATOMS);
     snew(local_bcl_f_per_k, BCL_N_ATOMS);
     snew(local_env_f_per_k, md->homenr);
+    snew(local_env_is_bcl, md->homenr);
     snew(local_site_n_couple, site_count);
 
     // Communicate the positions of the BCL atoms to all dd nodes
@@ -1619,9 +1621,30 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
         gmx_bcast(sizeof(real   )*BCL_N_ATOMS, global_bcl_q, cr);
 
         //4 Perform the cdc calculation locally
-        //GOTO
+        //GOTO cdc
+        // First, mark all env atoms that are within the bcl molecule
+        for (env_local = md->start ; env_local < md->start+md->homenr ; env_local++)
+        {
+            local_env_is_bcl[env_local] = FALSE;
+            for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++) 
+            {
+                int this_bcl_global = global_bcl_i[bcl_count];
+                int this_bcl_local = dd->ga2la->laa[this_bcl_global].la;
+                // TODO: Allow interactions with phytyl tail
+                // TODO: Set phytyl tail to ON/OFF with compile flag
+                if (ga2la_is_home(dd->ga2la, this_bcl_global))
+                {
+                    if (env_local == this_bcl_local)
+                    {
+                        local_env_is_bcl[env_local] = TRUE;
+                    }
+                }
+            }
+        }
+        
+        // match_counter is a debug tool to track number of matches to BCL atoms
+        // over all domains. This number should match number of atoms in BCL.
         int match_counter=0;
-        //x printf("Node %d: md->start=%d and md->homenr=%d, k = %.3f\n",cr->nodeid, md->start, md->homenr, pgrp->k);
         for (bcl_count = 0 ; bcl_count < BCL_N_ATOMS ; bcl_count++) 
         {
             int this_bcl_global = global_bcl_i[bcl_count];
@@ -1631,91 +1654,92 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             gmx_bool first_isnan=TRUE;
             for (env_local = md->start ; env_local < md->start+md->homenr ; env_local++)
             {
-                int f_local = env_local-md->start;
-                // Check that the environment atom and the BCL atom are not
-                // the same atoms!!
-                // i.e. either the bcl atom does not belong to this cell 
-                //    OR the bcl atom local index != the environment index
-                //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                //! FATAL WARNING:
-                //!    This procedure will interact bcl atoms with cdc charges
-                //!    from WITHIN THE SAME BCL! This is very incorrect
-                //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                if (this_bcl_cell_id == 0 && this_bcl_local == env_local)
+                if (local_env_is_bcl[env_local])
                 {
-                    // printf("Node %d found a match: BCL atom %d\n",cr->nodeid, this_bcl_global);
                     match_counter++;
+                    continue;
                 }
-                else
-                {
-                    // Create references for easier name convention
-                    rvec *bi = &(global_bcl_x[bcl_count]);
-                    rvec *ej = &(           x[env_local]);
+                int f_local = env_local-md->start;
+                
+                // Create reference variable for coordinates of relevant
+                //   bcl atom and environment atom
+                rvec *bi = &(global_bcl_x[bcl_count]);
+                rvec *ej = &(           x[env_local]);
 
-                    rvec bi_ej_force;
-                    rvec bi_ej_dx;
-                    
-                    pbc_dx(pbc, *bi, *ej, bi_ej_dx);
-                    real bi_ej_dist = norm(bi_ej_dx);
-                    //! Negative sign in front of global_bcl_q because the charge 
-                    //  array at the top is off by a negative sign, i.e. Qg - Qe  
-                    //  instead of Qe - Qg
-                    real bi_ej_couple   = md->chargeA[env_local] 
-                                          * -global_bcl_q[bcl_count]
-                                          * ONE_4PI_EPS0       // electrostatics
-                                          * .3333              // screening
-                    ;
-                    real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
-                    real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
-                                                       / bi_ej_dist
-                                                       / bi_ej_dist; //bias scale
-                    svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
-                    rvec_inc(  local_bcl_f_per_k[bcl_count], bi_ej_force);
-                    rvec_dec(local_env_f_per_k[  f_local], bi_ej_force);
-                    if (isnan(bi_ej_pot) && first_isnan)
-                    {
-                        printf("Potental has gone horribly is_nan on %d; bcl_global=%d and env_local=%d\n", cr->nodeid, this_bcl_global, env_local);
-                        printf("\tchromo (%d) pos: %.3f %.3f %.3f\n", bcl_count, *bi[0], *bi[1], *bi[2]);
-                        printf("\tenviron pos: %.3f %.3f %.3f\n", *ej[0], *ej[1], *ej[2]);
-                        printf("\tcharges b/e: %.3f %.3f\n",  md->chargeA[env_local], global_bcl_q[bcl_count]);
-                        first_isnan=FALSE;
-                    }
-                    
-                    local_bcl_couple += bi_ej_pot;
-#ifndef NO_PRINT_CDC_SITES
-                    //x This is all if we know the global index... but this might not even be useful
-                    //x   if we're only biasing on the full gap!!!
-                    //x 
-                    //x Also, if we want to sample this in equilibrium, we don't need to run our
-                    //x   simulations for a full equilibration time, so we can begin sampling immediately!
-                    //x 
-                    //x int env_global = env_local;//TODO This is horrendously incorrect; fix it!
-                    //x if (env_global < PROTEIN_N_ATOMS)
-                    //x {
-                    //x     int this_site=BCL4_resnr[env_global] ;
-                    //x     if (this_site >= site_count)
-                    //x     {
-                    //x         printf("Something has gone horribly wrong; this_site=%d\n", this_site);
-                    //x     }
-                    //x     local_site_n_couple[ BCL4_resnr[env_global]  ] += bi_ej_pot;
-                    //x }
-                    //x else if (env_global < (PROTEIN_N_ATOMS + 7 * BCL_N_ATOMS) )
-                    //x {
-                    //x     local_bcl_couple += bi_ej_pot;
-                    //x }
-                    //x else if (env_global < (md->nr - ION_N_ATOMS))
-                    //x {
-                    //x     local_solvent_couple += bi_ej_pot;
-                    //x }
-                    //x else
-                    //x {
-                    //x     local_ion_couple += bi_ej_pot;
-                    //x }
-#endif
+                rvec bi_ej_force;
+                rvec bi_ej_dx;
+                
+                pbc_dx(pbc, *bi, *ej, bi_ej_dx);
+                real bi_ej_dist = norm(bi_ej_dx);
+
+                //! Negative sign in front of global_bcl_q because the bcl_cdc_charges
+                //! array at the top has the wrong sign convention:
+                //! i.e. bcl_cdc_charges = (Qg - Qe) instead of (Qe - Qg)
+                //TODO: Allow E_effective to be passed at either compile time or runtime
+                //      so that it isn't hiding in here, out of sight 
+                real bi_ej_couple   = md->chargeA[env_local] 
+                                      * -global_bcl_q[bcl_count]
+                                      * ONE_4PI_EPS0       // electrostatics
+                                      * .3333              // screening, E_eff = 3.0
+                ;
+                real bi_ej_pot      = bi_ej_couple / bi_ej_dist;
+                real bi_ej_forcefac = bi_ej_couple / bi_ej_dist
+                                                   / bi_ej_dist
+                                                   / bi_ej_dist; //bias scale
+                svmul(bi_ej_forcefac, bi_ej_dx, bi_ej_force);
+                rvec_inc(local_bcl_f_per_k[bcl_count], bi_ej_force);
+                rvec_dec(local_env_f_per_k[  f_local], bi_ej_force);
+                if (isnan(bi_ej_pot) && first_isnan)
+                {
+                    printf("Potental has gone horribly is_nan on %d; bcl_global=%d and env_local=%d\n", cr->nodeid, this_bcl_global, env_local);
+                    printf("\tchromo (%d) pos: %.3f %.3f %.3f\n", bcl_count, *bi[0], *bi[1], *bi[2]);
+                    printf("\tenviron pos: %.3f %.3f %.3f\n", *ej[0], *ej[1], *ej[2]);
+                    printf("\tcharges b/e: %.3f %.3f\n",  md->chargeA[env_local], global_bcl_q[bcl_count]);
+                    first_isnan=FALSE;
                 }
+                
+                local_bcl_couple += bi_ej_pot;
+#ifndef NO_PRINT_SITES
+                //TODO: Make this work!
+                //TODO: env_global = gmx_ga2la->lal[env_local]->ga  ??
+                //TODO: Check the above against bcl_global_i array ^.^
+                //x This is all if we know the global index... but this might not even be useful 
+                //x   if we're only biasing on the full gap!!!
+                //x 
+                //x Also, if we want to sample this in equilibrium, we don't need to run our
+                //x   simulations for a full equilibration time, so we can begin sampling immediately!
+                //x 
+                //x int env_global = env_local;//TODO This is horrendously incorrect; fix it!
+                //x if (env_global < PROTEIN_N_ATOMS)
+                //x {
+                //x     int this_site=BCL4_resnr[env_global] ;
+                //x     if (this_site >= site_count)
+                //x     {
+                //x         printf("Something has gone horribly wrong; this_site=%d\n", this_site);
+                //x     }
+                //x     local_site_n_couple[ BCL4_resnr[env_global]  ] += bi_ej_pot;
+                //x }
+                //x else if (env_global < (PROTEIN_N_ATOMS + 7 * BCL_N_ATOMS) )
+                //x {
+                //x     local_bcl_couple += bi_ej_pot;
+                //x }
+                //x else if (env_global < (md->nr - ION_N_ATOMS))
+                //x {
+                //x     local_solvent_couple += bi_ej_pot;
+                //x }
+                //x else
+                //x {
+                //x     local_ion_couple += bi_ej_pot;
+                //x }
+#endif
+                 
             }
         }
-        //x printf("Node %d: DONE, found %d matches\n",cr->nodeid, match_counter);
+
+        //DEBUG!!
+        printf("Node %d: DONE, found %d matches\n",cr->nodeid, match_counter);
+        //DEBUG!!
+
 
         //5 Communicate the total gap
         //gmx_sumf(site_count, local_site_n_couple, cr);
@@ -1795,6 +1819,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             {
                 printf(" %.3f", local_site_n_couple[i] * kJ2cm1);
             }
+            printf("\n");
 #endif
             sfree(master_nbcl);
             sfree(master_rvec_bytes);
@@ -1818,6 +1843,7 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     sfree(global_bcl_i);
     sfree(local_bcl_f_per_k);
     sfree(local_env_f_per_k);
+    sfree(local_env_is_bcl);
     sfree(local_site_n_couple);
 
     if (MASTER(cr))
