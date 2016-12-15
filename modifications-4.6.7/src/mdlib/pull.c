@@ -1898,11 +1898,6 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             sfree(mydomain_bcl_i);
         }
     }
-    printf(" %f",     bcl_couple * kJ2cm1);
-    printf(" %f", solvent_couple * kJ2cm1);
-    printf(" %f",     ion_couple * kJ2cm1);
-    printf("\n");
-    free(site_n_couple);
 
     sfree(global_bcl_x);
     sfree(global_bcl_q);
