@@ -47,6 +47,9 @@ BIASSTR=$(printf '%+4.2f' $BIAS | sed 's/+/P/' | sed 's/-/M/')
 BIASSTR=$(echo $BIASSTR | sed 's/\./p/')
 file=bias_$BIASSTR
 
+echo "gap_umbrella.sh has MDRUN=$MDRUN"
+echo "gap_umbrella.sh has GROMPP=$GROMPP"
+
 if [ "$RESTART" = "true" ]; then
     $MDRUN -v -deffnm $OUTDIR/$file -noappend \
         -cpi $OUTDIR/$file.cpt -cpo $OUTDIR/$file.cpt -cpt 1 

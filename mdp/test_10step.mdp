@@ -2,14 +2,14 @@ title		= Generic NVT equilibration
 define		=          	; position restrain the protein
 ; Run parameters
 integrator	= md		; leap-frog integrator
-nsteps		= 500000    	; 1 ns
-dt	        = 0.002		; 2 fs
+nsteps		= 1000      ; 1 ns
+dt	        = 0.001		; 2 fs
 ; Output control
-nstxout		= 2000       	; save coordinates every 0.2 ps
-nstvout		= 2000       	; save velocities every 0.2 ps
-nstxtcout	= 2000       
+nstxout		= 1       	; save coordinates every 0.2 ps
+nstvout		= 1       	; save velocities every 0.2 ps
+nstxtcout	= 1       
 nstenergy	= 1       	; save energies every 0.2 ps
-nstlog		= 2000       	; update log file every 0.2 ps
+nstlog		= 1      	; update log file every 0.2 ps
 
 ; Bond parameters
 continuation	= no 		; first dynamics run
@@ -19,7 +19,7 @@ lincs_iter	= 1		; accuracy of LINCS
 lincs_order	= 4		; also related to accuracy
 
 ; Cutoffs and electrostatics
-pbc		= xyz		; 3-D PBC
+pbc		    = xyz		; 3-D PBC
 nstlist		= 10
 ns_type		= grid  	; search neighboring grid cells
 rlist		= 1.2		; short-range neighborlist cutoff (in nm)
@@ -32,24 +32,21 @@ fourierspacing	= 0.24		; grid spacing for FFT
 
 ; Velocity generation
 gen_vel		= yes		; assign velocities from Maxwell distribution
+gen_seed    = 90210     ; use a seed to ensure identical behavior between runs
 
 ; Temperature coupling is on
-tcoupl          = v-rescale
-tc-grps         = Protein    non-protein
-tau-t           = 0.1  0.1
-ref-t           = 300  300
-ld-seed			= 90210
-
+tcoupl		= no	     ; modified Berendsen thermostat
 
 ; Pressure coupling is off
 pcoupl		= no 		; no pressure coupling in NVT
 
 ; Pulling for CDC
-pull                    = constant-force
+pull                    = umbrella
 pull-nstxout            = 0
 pull-nstfout            = 0
 pull-geometry           = direction-periodic
 pull-dim                = Y Y Y
 pull-ngroups            = 1
-pull-group1 = BCL_BCL_373
-pull-k1 = 0.0
+pull-group1 = <TOFILL>
+pull-k1 = <TOFILL>
+pull-kB1 = 25

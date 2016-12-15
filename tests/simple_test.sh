@@ -13,7 +13,7 @@ SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 ## Setup the environment and read command line arguments
 MY_MDRUN=${1?pass the mdrun executable that you would like to test as \$1}
-export GMX_MAXBACKUPS=-1
+export GMX_MAXBACKUP=-1
 base=$SRCDIR/..
 GROMPP=${GROMPP-grompp}
 CHROMO=${CHROMO-371}
