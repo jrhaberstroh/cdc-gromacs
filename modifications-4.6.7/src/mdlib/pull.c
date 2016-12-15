@@ -1781,7 +1781,8 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             dVdl         += dkdl*local_cdc_total;
         }
         
-        if (MASTER(cr)) printf("F-scale: %f\n", pgrp->f_scal);
+        //DEBUG
+        //if (MASTER(cr)) printf("F-scale: %f\n", pgrp->f_scal);
 
         //8 Apply the environment forces (local, all)
         for (env_local = md->start ; env_local < md->start+md->homenr ; env_local++)
