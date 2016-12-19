@@ -75,8 +75,9 @@ pull-nstfout            = 0
 pull-geometry           = direction-periodic
 pull-dim                = Y Y Y
 pull-ngroups            = 1
-pull-group1 = BCL_BCL_${CHROMO}
-pull-k1 = 10.0
+; pull-group1 = BCL_BCL_${CHROMO}
+; pull-k1 = 10.0
+pull-k1 = 0.0
 MDP
 
 $GROMPP -c  $base/FMO_conf/em/em.gro            \

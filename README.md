@@ -9,11 +9,15 @@ energy gap umbrella sampling modifications to gromacs-4.6.7
     2. Chromophores ("bcl")
     3. solvent molecules (assumed to be waters -- does it assume a specific water model??)
     4. ions, any type
+  * NOTE: Your index file must have an index group for the molecule you want to
+ perform the CDC calculation on.
   2. Build with one of the included build scripts, making any necessary 
  modifications for your local system.
-  3. Use "pull" methods with lambda = 0 to calculate cdc during execution
-  4. Pull with lambda != 0 currently broken; To fix, you must include a
- clause that only applies forces for the biased molecule.
+  3. Set pull-group1 to the BCL molecule that you want to calculate
+    * Use "pull" methods with lambda = 0 to calculate cdc during execution
+    * Pull with lambda != 0 for biased simulation
+    * BCL\_N\_ATOM from the header must have the same number of atoms as
+ the specified pull group or else the behavior is unspecified.
 
 ++ Major files
 
