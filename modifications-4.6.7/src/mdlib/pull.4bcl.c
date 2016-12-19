@@ -1,5 +1,3 @@
-
-
 #define BCL_N_ATOMS 140
 // GOTO header
 // Computed as Qb0 - Qb1

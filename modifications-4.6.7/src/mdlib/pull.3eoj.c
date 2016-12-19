@@ -5,8 +5,8 @@ static double bcl_cdc_charges[BCL_N_ATOMS] = {0.017,0.027,0.021,0.000,0.053,0.00
 
 
 
-#define BCL_N_BCL 7
-#define ION_N_ATOMS 3
+#define BCL_N_BCL 24
+#define ION_N_ATOMS 374
 #define PROTEIN_N_ATOMS 5625 * 3
 
 static int BCL4_resnr[PROTEIN_N_ATOMS] = 

@@ -55,7 +55,10 @@ fi
 
 if [ "$MODE" = "MAKE" ]; then
     cd $SRCDIR
-    cp modifications-4.6.7/src/mdlib/* $build_dir/src/mdlib
+    ## Merge 3eoj modifications into base code and copy to build-source
+    echo "Merging cdc header into pull.c..."
+    sed -e '/%%CDC-INSERTION%%/r modifications-4.6.7/src/mdlib/pull.3eoj.c' \
+            modifications-4.6.7/src/mdlib/pull.BASE.c >  $build_dir/src/mdlib/pull.c
     cd $build_dir/build
     make -j 16
     make install-mdrun

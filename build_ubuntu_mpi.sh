@@ -60,9 +60,10 @@ fi
 if [ "$MODE" = "MAKE" ]; then
     cd $SRCDIR
 
-    f1=modifications-4.6.7/src/mdlib/pull.c
-    f2=$gromacs_base/src/mdlib/pull.c
-    cmp --silent $f1 $f2 || cp $f1 $f2
+    ## Merge 3eoj modifications into base code and copy to build-source
+    echo "Merging cdc header into pull.c..."
+    sed -e '/%%CDC-INSERTION%%/r modifications-4.6.7/src/mdlib/pull.3eoj.c' \
+         modifications-4.6.7/src/mdlib/pull.BASE.c >  $gromacs_base/src/mdlib/pull.c
     cd $gromacs_base/build-mpi
     # Reverse the sed operations for _ump_mpi_tot (in case they happened)
     sed -i 's/^CMAKE_C_FLAGS:STRING=-DNO_PRINT_CDC_SITES/CMAKE_C_FLAGS:STRING=/' CMakeCache.txt
