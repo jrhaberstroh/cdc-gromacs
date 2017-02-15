@@ -16,14 +16,9 @@ MY_MDRUN=${1?pass the mdrun executable that you would like to test as \$1}
 export GMX_MAXBACKUP=-1
 base=$SRCDIR/..
 GROMPP=${GROMPP-grompp}
-CHROMO=${CHROMO-371}
 
 echo "MDRUN for simple_test: $MY_MDRUN"
 echo "GROMPP for simple_test: $GROMPP"
-
-if [ ! -e "$base/test-output" ]; then
-    mkdir "$base/test-output"
-fi
 
 ## Create the MDP file to use
 cat << MDP > $base/test-output/simple-cat.mdp
@@ -79,14 +74,13 @@ pull-nstfout            = 0
 pull-geometry           = direction-periodic
 pull-dim                = Y Y Y
 pull-ngroups            = 1
-; pull-group1 = BCL_BCL_${CHROMO}
-; pull-k1 = 10.0
-pull-k1 = 0.0
+pull-group1		= BCL_1_373
+pull-k1                 = 10.0
 MDP
 
-$GROMPP -c  $base/FMO_conf/em/em.gro            \
-        -p  $base/FMO_conf/4BCL.top             \
-        -n  $base/FMO_conf/index.ndx            \
+$GROMPP -c  $base/3eoj-topology/em/em.gro            \
+        -p  $base/3eoj-topology/top/3eoj_xmshbsri.top             \
+        -n  $base/3eoj-topology/3eoj_xmshbsri.ndx            \
         -f  $base/test-output/simple-cat.mdp    \
         -o  $base/test-output/simple            \
         -po $base/test-output/simple            \
