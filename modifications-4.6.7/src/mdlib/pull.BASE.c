@@ -1126,14 +1126,11 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     real V_cdc, V, dVdl;
     real k, dkdl;
     // Create a t_pullgrp variable and only consider the first pullgroup
-    t_pullgrp *pgrp; pgrp = &pull->grp[1];
     double kJ2cm1 = 83.593;
     // number of BCL residues (aka "sites") in BCL4_resnr array
     int site_count = BCL4_resnr[PROTEIN_N_ATOMS-1]  + 1;
     int bcl_count, env_local;
 
-    int bcl_ind_min = pgrp->ind[0];
-    int bcl_ind_max = bcl_ind_min + BCL_N_ATOMS - 1;
     int      *master_nbcl = NULL;
     rvec     *global_bcl_x  = NULL;
     real     *global_bcl_q  = NULL;
@@ -1148,18 +1145,23 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     float local_ion_couple = 0.0;
     float k_this_step = 0.0;
 
-    snew(global_bcl_x, BCL_N_ATOMS);
-    snew(global_bcl_q, BCL_N_ATOMS);
-    snew(global_bcl_i, BCL_N_ATOMS);
-    snew(local_bcl_f_per_k, BCL_N_ATOMS);
-    snew(local_env_f_per_k, md->homenr);
-    snew(local_env_is_bcl, md->homenr);
-    snew(local_site_n_couple, site_count);
-    snew(local_bcl_couple, BCL_N_BCL);
 
     // Communicate the positions of the BCL atoms to all dd nodes
     if (cr && DOMAINDECOMP(cr))
     {
+        t_pullgrp *pgrp; pgrp = &pull->grp[1];
+        int bcl_ind_min = pgrp->ind[0];
+        int bcl_ind_max = bcl_ind_min + BCL_N_ATOMS - 1;
+
+        snew(global_bcl_x, BCL_N_ATOMS);
+        snew(global_bcl_q, BCL_N_ATOMS);
+        snew(global_bcl_i, BCL_N_ATOMS);
+        snew(local_bcl_f_per_k, BCL_N_ATOMS);
+        snew(local_env_f_per_k, md->homenr);
+        snew(local_env_is_bcl, md->homenr);
+        snew(local_site_n_couple, site_count);
+        snew(local_bcl_couple, BCL_N_BCL);
+        
         gmx_domdec_t *dd = cr->dd;
         // Counter to use while iterating through nodes
         int node_ctr;
@@ -1526,16 +1528,18 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
             sfree(mydomain_bcl_q);
             sfree(mydomain_bcl_i);
         }
+
+        sfree(global_bcl_x);
+        sfree(global_bcl_q);
+        sfree(global_bcl_i);
+        sfree(local_bcl_f_per_k);
+        sfree(local_env_f_per_k);
+        sfree(local_env_is_bcl);
+        sfree(local_site_n_couple);
+        sfree(local_bcl_couple);
+
     }
 
-    sfree(global_bcl_x);
-    sfree(global_bcl_q);
-    sfree(global_bcl_i);
-    sfree(local_bcl_f_per_k);
-    sfree(local_env_f_per_k);
-    sfree(local_env_is_bcl);
-    sfree(local_site_n_couple);
-    sfree(local_bcl_couple);
 
     if (MASTER(cr))
     {
