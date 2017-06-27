@@ -10,6 +10,7 @@ set -o nounset
 set -o errexit
 
 SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+base="$SRCDIR/.."
 
 MDP=$base/test-output/simple-cat.mdp
 
@@ -24,7 +25,6 @@ GMX_PO=$base/test-output/simple
 ## Setup the environment and read command line arguments
 MY_MDRUN=${1?pass the mdrun executable that you would like to test as \$1}
 export GMX_MAXBACKUP=-1
-base=$SRCDIR/..
 GROMPP=${GROMPP-grompp}
 
 echo "MDRUN for simple_test: $MY_MDRUN"

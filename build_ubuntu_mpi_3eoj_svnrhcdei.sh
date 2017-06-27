@@ -4,18 +4,20 @@ set -o errexit
 SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 topology_version='3eoj_svnrhcdei'
 gromacs_base="$SRCDIR/gromacs-build-${topology_version}-4.6.7"
+SUFFIX="_umb_mpi_${topology_version}"
+BINDIR="$gromacs_base/build-mpi/src/kernel"
 cd $SRCDIR
 
 MODE=${1-MAKE}
 
-INSTRUCTIONS="Pass any of {ALL, BUILD, COMPILE, INITIALIZE, TOTAL-ONLY, TEST} to \$1"
+INSTRUCTIONS="Pass any of {ALL, BUILD, COMPILE, INITIALIZE, MAKE, TOTAL-ONLY, INSTALL, TEST} to \$1"
 
 if [ "$MODE" = '-h' ]; then
     echo $INSTRUCTIONS
     exit 0
 fi
 
-if ! ( [ "$MODE" = "MAKE" ] || [ "$MODE" = "BUILD" ] || [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "TOTAL-ONLY" ] || [ "$MODE" = "TEST" ] || [ "$MODE" = "ALL" ] ); then
+if ! ( [ "$MODE" = "MAKE" ] || [ "$MODE" = "BUILD" ] || [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "TOTAL-ONLY" ] || [ "$MODE" = "TEST" ] || [ "$MODE" = "INSTALL"] || [ "$MODE" = "ALL" ] ); then
     echo "Input Error: $INSTRUCTIONS"
     exit 300
 fi
@@ -57,7 +59,7 @@ if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
             -DGMX_PREFER_STATIC_LIBS=ON                        \
             -DGMX_BUILD_OWN_FFTW=ON                            \
             -DGMX_DEFAULT_SUFFIX=off                           \
-            -DGMX_BINARY_SUFFIX="_umb_mpi_${topology_version}" \
+            -DGMX_BINARY_SUFFIX="${SUFFIX}"                    \
             -DCMAKE_INSTALL_PREFIX=$HOME/local/gromacs_umb_mpi-4.6.7
     MODE="MAKE"
 fi
@@ -74,21 +76,26 @@ if [ "$MODE" = "MAKE" ]; then
     sed -i 's/^CMAKE_C_FLAGS:STRING=-DNO_PRINT_CDC_SITES/CMAKE_C_FLAGS:STRING=/' CMakeCache.txt
     sed -i 's/^GMX_BINARY_SUFFIX:STRING=_umb_mpi_tot/GMX_BINARY_SUFFIX:STRING=_umb_mpi/' CMakeCache.txt
     make -j 16 
-    make install-mdrun
-
+    MODE="TEST"
 fi
+
 
 if [ "$MODE" = "TOTAL-ONLY" ]; then
     sed -i 's/^CMAKE_C_FLAGS:STRING=/CMAKE_C_FLAGS:STRING=-DNO_PRINT_CDC_SITES /' CMakeCache.txt
     sed -i 's/^GMX_BINARY_SUFFIX:STRING=_umb_mpi/GMX_BINARY_SUFFIX:STRING=_umb_mpi_tot/' CMakeCache.txt
     make -j 16 
+fi
+
+if [ "$MODE" = "INSTALL" ]; then
     make install-mdrun
 fi
 
-
 if [ "$MODE" = "TEST" ]; then
-    $SRCDIR/test/3eoj_basic_test.sh "mpirun -np 6 $gromacs_base/build-mpi/src/kernel/mdrun${SUFFIX}"
-    $SRCDIR/test/3eoj_pme_test.sh "$gromacs_base/build-mpi/src/kernel/mdrun${SUFFIX}"
+    GMX_C=$SRCDIR/3eoj_sv-topology/em/em.gro                    \
+    GMX_P=$SRCDIR/3eoj_sv-topology/top/${topology_version}.top  \
+    GMX_N=$SRCDIR/3eoj_sv-topology/${topology_version}.ndx      \
+    GROMPP=$BINDIR/grompp${SUFFIX}                              \
+        $SRCDIR/test/3eoj_basic_test.sh "mpirun -np 2 $BINDIR/mdrun${SUFFIX}"
 fi
 
 

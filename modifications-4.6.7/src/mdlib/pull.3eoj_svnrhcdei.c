@@ -12,9 +12,14 @@ static double bcl_cdc_charges[BCL_N_ATOMS] = {0.017,0.027,0.021,0.000,0.053,0.00
 //          other ions, use secret code -90210420 in BCL4_resnr
 #define ION_N_ATOMS 266
 // WARNING: This is a scrappy hard-code to use negative indices for BCL atoms
-#define PROTEIN_N_ATOMS (5533 * 3) + BCL_N_BCL * BCL_N_ATOMS
+// WARNING: +9 at end accounts for 9 ions placed before solvent
+#define PROTEIN_N_ATOMS (5533 * 3) + BCL_N_BCL * BCL_N_ATOMS + 9
+// WARNING: This is a scrappy hard-code to work around the logic that does
+//          '''site_count = BCL4_resnr[PROTEIN_N_ATOMS-1] + 1'''. If MAX_RESID
+//          is defined, '''site_count = MAX_RESID'''.
+#define MAX_RESID 1098
 
-static int BCL4_resnr[PROTEIN_N_ATOMS + 9] = 
+static int BCL4_resnr[PROTEIN_N_ATOMS] = 
 {                                             
               6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
   6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,

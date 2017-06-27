@@ -1145,7 +1145,11 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
     // Create a t_pullgrp variable and only consider the first pullgroup
     double kJ2cm1 = 83.593;
     // number of BCL residues (aka "sites") in BCL4_resnr array
+#ifndef MAX_RESID 
     int site_count = BCL4_resnr[PROTEIN_N_ATOMS-1]  + 1;
+#else
+    int site_count = MAX_RESID;
+#endif
     int bcl_count, env_local;
 
     int      *master_nbcl = NULL;
@@ -1415,11 +1419,13 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     //         indices that do not exist 
                     if (this_site >= site_count)
                     {
-                        printf("Something has gone horribly wrong; this_site=%d\n", this_site);
+                        printf("WARNING: Something has gone horribly wrong; this_site (%d) >= site_count (%d)\n", this_site, site_count);
                     }
                     // CASE 1.2: Check for secret ion work-around
                     else if (this_site == SECRET_ION_CODE)
                     {
+                        //DEBUG Manually check that the SECRET_ION_CODE finds the right number of atoms
+                        //DEBUG if (bcl_count == 0) printf("Found a friendly little ion in the protein section :)\n");
                         local_ion_couple += bi_ej_pot;
                     }
                     // CASE 1.3: Check for BCL work-around
