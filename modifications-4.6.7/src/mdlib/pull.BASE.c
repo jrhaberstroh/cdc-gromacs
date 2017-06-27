@@ -1131,7 +1131,7 @@ static void dump_data_frame_trn(int ndata, float *data, const char *filename, re
 //       This large, arbitrary negative integer should suffice, but be careful
 //       if your system uses 16 bit integers or something like that.
 #ifndef SECRET_ION_CODE
-#define SECRET_ION_CODE -90210420
+#define SECRET_ION_CODE (-90210420)
 #endif
 
 

@@ -7,14 +7,14 @@ static double bcl_cdc_charges[BCL_N_ATOMS] = {0.017,0.027,0.021,0.000,0.053,0.00
 
 #define BCL_N_BCL 24
 #define BCL_N_BCL_IN_SECTION 0
+#define SECRET_ION_CODE -90210420
 // WARNING: Only ions that are after solvent are included in ION_N_ATOMS; for
 //          other ions, use secret code -90210420 in BCL4_resnr
-#define SECRET_ION_CODE -90210420
 #define ION_N_ATOMS 266
 // WARNING: This is a scrappy hard-code to use negative indices for BCL atoms
 #define PROTEIN_N_ATOMS (5533 * 3) + BCL_N_BCL * BCL_N_ATOMS
 
-static int BCL4_resnr[PROTEIN_N_ATOMS] = 
+static int BCL4_resnr[PROTEIN_N_ATOMS + 9] = 
 {                                             
               6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
   6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
@@ -1181,6 +1181,7 @@ static int BCL4_resnr[PROTEIN_N_ATOMS] =
 
 -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, -24, 
 
-SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE 
+SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, 
+SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE, SECRET_ION_CODE 
 };
 
