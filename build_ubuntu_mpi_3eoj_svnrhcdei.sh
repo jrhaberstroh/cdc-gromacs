@@ -3,7 +3,7 @@ set -o nounset
 set -o errexit
 SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 topology_version='3eoj_svnrhcdei'
-gromacs_base="$SRCDIR/gromacs-build-3eoj_svnrhcdei-4.6.7"
+gromacs_base="$SRCDIR/gromacs-build-${topology_version}-4.6.7"
 cd $SRCDIR
 
 MODE=${1-MAKE}
@@ -65,7 +65,7 @@ fi
 if [ "$MODE" = "MAKE" ]; then
     cd $SRCDIR
 
-    ## Merge 3eoj modifications into base code and copy to build-source
+    ## Merge topology modifications into base code and copy to build-source
     echo "Merging cdc header into pull.c..."
     sed -e '/%%CDC-INSERTION%%'"/r modifications-4.6.7/src/mdlib/pull.${topology_version}.c" \
          modifications-4.6.7/src/mdlib/pull.BASE.c >  $gromacs_base/src/mdlib/pull.c

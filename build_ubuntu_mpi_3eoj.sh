@@ -2,7 +2,8 @@
 set -o nounset
 set -o errexit
 SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-gromacs_base=$SRCDIR/gromacs-srcmod-4.6.7
+topology_version='3eoj'
+gromacs_base="$SRCDIR/gromacs-build-${topology_version}-4.6.7"
 cd $SRCDIR
 
 MODE=${1-MAKE}
@@ -23,9 +24,13 @@ fi
 # INITIALIZE
 if [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "ALL" ]; then
     echo "INITIALIZING..."
-    wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-4.6.7.tar.gz
-    tar -xvf gromacs-4.6.7.tar.gz
-    mv gromacs-4.6.7 $gromacs_base
+    if [ ! -e $gromacs_base ]; then 
+        if [ ! -e gromacs-4.6.7.tar.gz ]; then
+            wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-4.6.7.tar.gz
+        fi
+        tar -xvf gromacs-4.6.7.tar.gz
+        mv gromacs-4.6.7 $gromacs_base
+    fi
     cd $gromacs_base
     if [ ! -e build-mpi ]; then
         mkdir build-mpi
@@ -40,19 +45,19 @@ if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
         mkdir build-mpi
     fi
     cd build-mpi
-    cmake ..                                        \
-            -DGMX_MPI=on                            \
-            -DGMX_GPU=off                           \
-            -DGMX_OPENMM=off                        \
-	        -DGMX_OPENMP=off                        \
-            -DGMX_THREAD_MPI=off                    \
-            -DGMX_X11=off                           \
-            -DCMAKE_CXX_COMPILER=g++                \
-            -DCMAKE_C_COMPILER=gcc                  \
-            -DGMX_PREFER_STATIC_LIBS=ON             \
-            -DGMX_BUILD_OWN_FFTW=ON                 \
-            -DGMX_DEFAULT_SUFFIX=off                \
-            -DGMX_BINARY_SUFFIX="_umb_mpi_3eoj"     \
+    cmake ..                                                   \
+            -DGMX_MPI=on                                       \
+            -DGMX_GPU=off                                      \
+            -DGMX_OPENMM=off                                   \
+	        -DGMX_OPENMP=off                                   \
+            -DGMX_THREAD_MPI=off                               \
+            -DGMX_X11=off                                      \
+            -DCMAKE_CXX_COMPILER=g++                           \
+            -DCMAKE_C_COMPILER=gcc                             \
+            -DGMX_PREFER_STATIC_LIBS=ON                        \
+            -DGMX_BUILD_OWN_FFTW=ON                            \
+            -DGMX_DEFAULT_SUFFIX=off                           \
+            -DGMX_BINARY_SUFFIX="_umb_mpi_${topology_version}" \
             -DCMAKE_INSTALL_PREFIX=$HOME/local/gromacs_umb_mpi-4.6.7
     MODE="MAKE"
 fi
@@ -60,9 +65,9 @@ fi
 if [ "$MODE" = "MAKE" ]; then
     cd $SRCDIR
 
-    ## Merge 3eoj modifications into base code and copy to build-source
+    ## Merge topology modifications into base code and copy to build-source
     echo "Merging cdc header into pull.c..."
-    sed -e '/%%CDC-INSERTION%%/r modifications-4.6.7/src/mdlib/pull.3eoj.c' \
+    sed -e '/%%CDC-INSERTION%%'"/r modifications-4.6.7/src/mdlib/pull.${topology_version}.c" \
          modifications-4.6.7/src/mdlib/pull.BASE.c >  $gromacs_base/src/mdlib/pull.c
     cd $gromacs_base/build-mpi
     # Reverse the sed operations for _ump_mpi_tot (in case they happened)
