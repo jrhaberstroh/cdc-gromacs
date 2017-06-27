@@ -8,14 +8,14 @@ cd $SRCDIR
 
 MODE=${1-MAKE}
 
-INSTRUCTIONS="Pass ALL, BUILD, COMPILE, or INITIALIZE to \$1"
+INSTRUCTIONS="Pass any of {ALL, BUILD, COMPILE, INITIALIZE, TOTAL-ONLY, TEST} to \$1"
 
 if [ "$MODE" = '-h' ]; then
     echo $INSTRUCTIONS
     exit 0
 fi
 
-if ! ( [ "$MODE" = "MAKE" ] || [ "$MODE" = "BUILD" ] || [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "ALL" ] ); then
+if ! ( [ "$MODE" = "MAKE" ] || [ "$MODE" = "BUILD" ] || [ "$MODE" = "INITIALIZE" ] || [ "$MODE" = "TOTAL-ONLY" ] || [ "$MODE" = "TEST" ] || [ "$MODE" = "ALL" ] ); then
     echo "Input Error: $INSTRUCTIONS"
     exit 300
 fi
@@ -84,3 +84,12 @@ if [ "$MODE" = "TOTAL-ONLY" ]; then
     make -j 16 
     make install-mdrun
 fi
+
+
+if [ "$MODE" = "TEST" ]; then
+    $SRCDIR/test/3eoj_basic_test.sh "mpirun -np 6 $gromacs_base/build-mpi/src/kernel/mdrun${SUFFIX}"
+    $SRCDIR/test/3eoj_pme_test.sh "$gromacs_base/build-mpi/src/kernel/mdrun${SUFFIX}"
+fi
+
+
+

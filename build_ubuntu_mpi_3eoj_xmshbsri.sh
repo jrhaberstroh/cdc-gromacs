@@ -2,7 +2,7 @@
 set -o nounset
 set -o errexit
 SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-topology_version='3eoj'
+topology_version='3eoj_xmshbsri'
 gromacs_base="$SRCDIR/gromacs-build-${topology_version}-4.6.7"
 SUFFIX="_umb_mpi_${topology_version}"
 cd $SRCDIR
