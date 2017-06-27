@@ -250,6 +250,7 @@ static void apply_forces_grp(t_pullgrp *pgrp, t_mdatoms * md,
         }
 
         for (m = 0; m < DIM; m++)
+
         {
             f[ii][m] += sign * wmass * f_pull[m] * inv_wm;
         }
@@ -1118,6 +1119,22 @@ static void dump_data_frame_trn(int ndata, float *data, const char *filename, re
 // } t_pullgrp;
 // GOTO pull
 
+// NOTE: Separation of BCL_N_BCL into BCL_N_BCL_IN_SECTION is to permit the
+//       work-around where BCL molecules are interspersed with protein
+//       residues. Use negative counting numbers >= -BCL_N_BCL to index
+//       BCL molecules in this work-around.
+#ifndef BCL_N_BCL_IN_SECTION
+#define BCL_N_BCL_IN_SECTION BCL_N_BCL
+#endif
+// NOTE: if SECRET_ION_CODE is not defined, it doesn't matter what it gets set
+//       to, as long as it is not a resid that is ues for something else!
+//       This large, arbitrary negative integer should suffice, but be careful
+//       if your system uses 16 bit integers or something like that.
+#ifndef SECRET_ION_CODE
+#define SECRET_ION_CODE -90210420
+#endif
+
+
 real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                     t_commrec *cr, double t, real lambda,
                     rvec *x, rvec *f, tensor vir, real *dvdlambda)
@@ -1390,24 +1407,46 @@ real pull_potential(int ePull, t_pull *pull, t_mdatoms *md, t_pbc *pbc,
                 local_cdc_total += bi_ej_pot;
 #ifndef NO_PRINT_SITES
                 int env_global = dd->gatindex[env_local];
+                // CASE 1: Treat like a protein atom
                 if (env_global < PROTEIN_N_ATOMS)
                 {
-                    int this_site=BCL4_resnr[env_global] ;
+                    int this_site = BCL4_resnr[env_global] ;
+                    // CASE 1.1: Error check that we do not access any residue 
+                    //         indices that do not exist 
                     if (this_site >= site_count)
                     {
                         printf("Something has gone horribly wrong; this_site=%d\n", this_site);
                     }
-                    local_site_n_couple[ BCL4_resnr[env_global]  ] += bi_ej_pot;
+                    // CASE 1.2: Check for secret ion work-around
+                    else if (this_site == SECRET_ION_CODE)
+                    {
+                        local_ion_couple += bi_ej_pot;
+                    }
+                    // CASE 1.3: Check for BCL work-around
+                    else if (this_site < 0)
+                    {
+                        local_bcl_couple[abs(this_site) - 1] += bi_ej_pot;
+                    }
+                    // CASE 1.4: Handle regularly
+                    else
+                    {
+                        local_site_n_couple[ BCL4_resnr[env_global]  ] += bi_ej_pot;
+                    }
                 }
-                else if (env_global < (PROTEIN_N_ATOMS + (BCL_N_BCL * BCL_N_ATOMS)) )
+                // CASE 2: Treat like a BCL atom; use #define BCL_N_BCL_IN_SECTION 0 
+                //         in the header to skip this section.
+                else if (env_global < (PROTEIN_N_ATOMS + (BCL_N_BCL_IN_SECTION * BCL_N_ATOMS)) )
                 {
                     int bin = (env_global - PROTEIN_N_ATOMS) / BCL_N_ATOMS;
                     local_bcl_couple[bin] += bi_ej_pot;
                 }
+                // CASE 3: Treat like a solvent atom. Only include ions that come
+                //         that come after the solvent in ION_N_ATOMS
                 else if (env_global < (nat_global - ION_N_ATOMS))
                 {
                     local_solvent_couple += bi_ej_pot;
                 }
+                // CASE 4: Treat like an ion
                 else
                 {
                     local_ion_couple += bi_ej_pot;

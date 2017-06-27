@@ -52,7 +52,7 @@ if [ "$MODE" = "BUILD" ] || [ "$MODE" == "ALL" ]; then
             -DGMX_PREFER_STATIC_LIBS=ON             \
             -DGMX_BUILD_OWN_FFTW=ON                 \
             -DGMX_DEFAULT_SUFFIX=off                \
-            -DGMX_BINARY_SUFFIX="_umb_mpi"          \
+            -DGMX_BINARY_SUFFIX="_umb_mpi_3eoj"     \
             -DCMAKE_INSTALL_PREFIX=$HOME/local/gromacs_umb_mpi-4.6.7
     MODE="MAKE"
 fi
