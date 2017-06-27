@@ -1,3 +1,6 @@
+.*.swp
+3eoj-topology
+3eoj_*-topology
 gromacs-srcmod-4.6.7
 FMO_conf
 gromacs-4.6.7.tar.gz
