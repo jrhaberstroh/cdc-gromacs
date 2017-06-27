@@ -88,12 +88,12 @@ pull-group1		        = BCL_1_373
 pull-k1                 = 10.0
 MDP
 
-$GROMPP -c  $base/3eoj-topology/em/em.gro            \
-        -p  $base/3eoj-topology/top/3eoj_xmshbsri.top             \
-        -n  $base/3eoj-topology/3eoj_xmshbsri.ndx            \
-        -f  $base/test-output/simple-cat.mdp    \
-        -o  $base/test-output/simple            \
-        -po $base/test-output/simple            \
+$GROMPP -c  $GMX_C  \
+        -p  $GMX_P  \
+        -n  $GMX_N  \
+        -f  $GMX_F  \
+        -o  $GMX_O  \
+        -po $GMX_PO \
         -maxwarn 1
 
 $MY_MDRUN  -v -deffnm $base/test-output/simple
