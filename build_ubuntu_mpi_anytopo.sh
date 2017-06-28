@@ -2,6 +2,7 @@
 set -o nounset
 set -o errexit
 topology_version=${topology_version-3eoj_svnrhcdei}
+HEADERMODE=${HEADERMODE-auto}
 echo "ACTIVE TOPOLOGY: ${topology_version}"
 
 SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
@@ -9,7 +10,6 @@ gromacs_base="$SRCDIR/gromacs-build-${topology_version}-4.6.7"
 SUFFIX="_umb_mpi_${topology_version}"
 BINDIR="$gromacs_base/build-mpi/src/kernel"
 ## Change HEADERMODE to manual to use manually generated header files
-HEADERMODE="auto"
 cd $SRCDIR
 
 MODE=${1-MAKE}
@@ -87,7 +87,6 @@ if [ "$MODE" = "MAKE" ]; then
     sed -i 's/^CMAKE_C_FLAGS:STRING=-DNO_PRINT_CDC_SITES/CMAKE_C_FLAGS:STRING=/' CMakeCache.txt
     sed -i 's/^GMX_BINARY_SUFFIX:STRING=_umb_mpi_tot/GMX_BINARY_SUFFIX:STRING=_umb_mpi/' CMakeCache.txt
     make -j 16 
-    MODE="TEST"
 fi
 
 
@@ -102,17 +101,23 @@ if [ "$MODE" = "INSTALL" ]; then
 fi
 
 if [ "$MODE" = "TEST" ]; then
-    GMX_C=$SRCDIR/${topology_version}-topology/${topology_version}_em/em.gro                    \
-    GMX_P=$SRCDIR/${topology_version}-topology/top/${topology_version}.top  \
-    GMX_N=$SRCDIR/${topology_version}-topology/${topology_version}.ndx      \
-    GROMPP=$BINDIR/grompp${SUFFIX}                              \
-        $SRCDIR/test/3eoj_basic_test.sh "mpirun -np 6 $BINDIR/mdrun${SUFFIX}"
+##     GMX_C=$SRCDIR/${topology_version}-topology/${topology_version}_em/em.gro                    \
+##     GMX_P=$SRCDIR/${topology_version}-topology/top/${topology_version}.top  \
+##     GMX_N=$SRCDIR/${topology_version}-topology/${topology_version}.ndx      \
+##     GROMPP=$BINDIR/grompp${SUFFIX}                              \
+##         $SRCDIR/test/3eoj_basic_test.sh "mpirun -np 6 $BINDIR/mdrun${SUFFIX}"
+## 
+##     GMX_C=$SRCDIR/${topology_version}-topology/${topology_version}_em/em.gro                    \
+##     GMX_P=$SRCDIR/${topology_version}-topology/top/${topology_version}.top  \
+##     GMX_N=$SRCDIR/${topology_version}-topology/${topology_version}.ndx      \
+##     GROMPP=$BINDIR/grompp${SUFFIX}                              \
+##         $SRCDIR/test/3eoj_pme_test.sh "$BINDIR/mdrun${SUFFIX}"
 
-    GMX_C=$SRCDIR/${topology_version}-topology/${topology_version}_em/em.gro                    \
-    GMX_P=$SRCDIR/${topology_version}-topology/top/${topology_version}.top  \
-    GMX_N=$SRCDIR/${topology_version}-topology/${topology_version}.ndx      \
-    GROMPP=$BINDIR/grompp${SUFFIX}                              \
-        $SRCDIR/test/3eoj_pme_test.sh "$BINDIR/mdrun${SUFFIX}"
+    GMX_C=$SRCDIR/${topology_version}-topology/${topology_version}_em/em.gro   \
+    GMX_P=$SRCDIR/${topology_version}-topology/top/${topology_version}.top     \
+    GMX_N=$SRCDIR/${topology_version}-topology/${topology_version}.ndx         \
+    GROMPP=$BINDIR/grompp${SUFFIX}                                             \
+        $SRCDIR/test/3eoj_autoVSmanual_ABtest_ubuntu.sh "mpirun -np 6 $BINDIR/mdrun${SUFFIX}"
 
 fi
 

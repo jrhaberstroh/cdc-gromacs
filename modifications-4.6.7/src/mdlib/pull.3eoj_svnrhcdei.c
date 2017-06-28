@@ -1,1 +1,1 @@
-pull.3eoj_svnrhcdei_auto.c
+pull.3eoj_svnrhcdei_manual.c
