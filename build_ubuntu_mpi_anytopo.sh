@@ -8,6 +8,8 @@ SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 gromacs_base="$SRCDIR/gromacs-build-${topology_version}-4.6.7"
 SUFFIX="_umb_mpi_${topology_version}"
 BINDIR="$gromacs_base/build-mpi/src/kernel"
+## Change HEADERMODE to manual to use manually generated header files
+HEADERMODE="auto"
 cd $SRCDIR
 
 MODE=${1-MAKE}
@@ -68,13 +70,20 @@ fi
 
 if [ "$MODE" = "MAKE" ]; then
     cd $SRCDIR
+    ## Generate automagic header
+    python modifications-4.6.7/src/mdlib/generate_3eoj.py                      \
+            ${topology_version}-topology/${topology_version}.gro >             \
+            modifications-4.6.7/src/mdlib/pull.${topology_version}_auto.c
 
-    ## Merge topology modifications into base code and copy to build-source
+    ## Merge topology modifications into base code, then write it to build-source
     echo "Merging cdc header into pull.c..."
+    $(cd modifications-4.6.7/src/mdlib
+            ln -sf pull.${topology_version}_${HEADERMODE}.c pull.${topology_version}.c)
     sed -e '/%%CDC-INSERTION%%'"/r modifications-4.6.7/src/mdlib/pull.${topology_version}.c" \
          modifications-4.6.7/src/mdlib/pull.BASE.c >  $gromacs_base/src/mdlib/pull.c
     cd $gromacs_base/build-mpi
-    # Reverse the sed operations for _ump_mpi_tot (in case they happened)
+
+    # Reverse the sed operations for [MODE = TOTAL_ONLY] (in case that was used)
     sed -i 's/^CMAKE_C_FLAGS:STRING=-DNO_PRINT_CDC_SITES/CMAKE_C_FLAGS:STRING=/' CMakeCache.txt
     sed -i 's/^GMX_BINARY_SUFFIX:STRING=_umb_mpi_tot/GMX_BINARY_SUFFIX:STRING=_umb_mpi/' CMakeCache.txt
     make -j 16 

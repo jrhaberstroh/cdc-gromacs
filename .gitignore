@@ -22,3 +22,4 @@ test/out-ab_test/
 test/out-simple_test/
 test/scplot.py
 valgrind_out
+modifications-4.6.7/src/mdlib/pull.*_auto.c
