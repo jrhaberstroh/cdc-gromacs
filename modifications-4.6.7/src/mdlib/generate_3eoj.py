@@ -22,13 +22,15 @@ CONSTANT_HEADER='''
 static double bcl_cdc_charges[BCL_N_ATOMS] = {0.017,0.027,0.021,0.000,0.053,0.000,0.030,0.000,0.028,-0.020,-0.031,-0.009,0.000,-0.003,0.000,-0.004,0.000,0.000,0.000,-0.004,0.000,0.000,0.001,0.000,0.000,-0.003,0.001,0.001,0.014,-0.023,-0.070,0.027,0.027,0.001,0.000,0.000,0.000,0.023,0.013,0.000,0.000,0.000,0.000,0.039,-0.041,-0.060,-0.005,0.000,-0.003,0.000,-0.003,0.000,0.000,0.000,-0.004,0.000,0.000,-0.001,0.000,0.000,0.000,0.012,-0.053,-0.047,0.018,-0.004,-0.002,0.000,0.000,0.000,0.027,0.009,-0.002,0.000,-0.002,0.002,0.003,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000};
 '''
 
+t_HOH="HOH"
 t_SOL="SOL"
 t_NA="NA"
 t_CL="CL"
 t_BCL="BCL"
 t_SECRET_ION_CODE="SECRET_ION_CODE"
 protein_resnr = []
-NONPROTEIN=[t_SOL, t_NA, t_CL, t_BCL]
+NONPROTEIN=[t_HOH, t_SOL, t_NA, t_CL, t_BCL]
+SOLVENTS=[t_HOH, t_SOL]
 
 with open(args.gro) as f:
     comment = f.readline()
@@ -55,7 +57,7 @@ with open(args.gro) as f:
         this_resid  =int(this_rescode[:5])
         this_restype=str(this_rescode[5:]).strip()
         ## CASE 1: Discovered a solvent molecule
-        if this_restype == t_SOL:
+        if this_restype in SOLVENTS:
             b_reachedsol=True
         ## CASE 2: Have not yet reached solvent and encountered a new resid
         if this_resid != previ_any_resid and not b_reachedsol:
@@ -92,7 +94,7 @@ with open(args.gro) as f:
         if b_reachedsol and this_restype in [t_NA, t_CL]:
             b_reachedion = True
             count_ion_reachedsol += 1
-        if b_reachedion and this_restype == t_SOL:
+        if b_reachedion and this_restype in SOLVENTS:
             raise ValueError("Fatal Error: Erroneously reached SOL residue after encountering an ion residue. Protocol has no method of handling this file format. Aborting.")
             
            
