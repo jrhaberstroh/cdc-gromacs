@@ -10,19 +10,28 @@ set -o nounset
 set -o errexit
 
 SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+base=$SRCDIR/..
+
+MDP=$base/test-output/simple-cat.mdp
+
+GMX_C=${GMX_C-$base/3eoj-topology/em/em.gro}
+GMX_P=${GMX_P-$base/3eoj-topology/top/3eoj_xmshbsri.top}
+GMX_N=${GMX_N-$base/3eoj-topology/3eoj_xmshbsri.ndx }
+GMX_F=$MDP
+GMX_O=$base/test-output/simple         
+GMX_PO=$base/test-output/simple          
+
 
 ## Setup the environment and read command line arguments
 MY_MDRUN=${1?pass the mdrun executable that you would like to test as \$1}
 export GMX_MAXBACKUP=-1
-base=$SRCDIR/..
 GROMPP=${GROMPP-grompp}
-CHROMO=${CHROMO-371}
 
 echo "MDRUN for simple_test: $MY_MDRUN"
 echo "GROMPP for simple_test: $GROMPP"
 
 ## Create the MDP file to use
-cat << MDP > $base/test-output/simple-cat.mdp
+cat << MDP > $MDP
 title       = Generic NVT equilibration 
 define      =                   ; position restrain the protein
 ; Run parameters
@@ -75,16 +84,16 @@ pull-nstfout            = 0
 pull-geometry           = direction-periodic
 pull-dim                = Y Y Y
 pull-ngroups            = 1
-pull-group1 = BCL_BCL_${CHROMO}
-pull-k1 = 10.0
+pull-group1		= BCL_1_373
+pull-k1                 = 10.0
 MDP
 
-$GROMPP -c  $base/FMO_conf/em/em.gro            \
-        -p  $base/FMO_conf/4BCL.top             \
-        -n  $base/FMO_conf/index.ndx            \
-        -f  $base/test-output/simple-cat.mdp    \
-        -o  $base/test-output/simple            \
-        -po $base/test-output/simple            \
+$GROMPP -c  $GMX_C  \
+        -p  $GMX_P  \
+        -n  $GMX_N  \
+        -f  $GMX_F  \
+        -o  $GMX_O  \
+        -po $GMX_PO \
         -maxwarn 1
 
-$MY_MDRUN  -v -deffnm $base/test-output/simple
+mpirun -np 2 $MY_MDRUN -v -deffnm $base/test-output/simple
